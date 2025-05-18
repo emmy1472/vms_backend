@@ -11,6 +11,9 @@ from .permissions import IsAdmin, IsEmployee, IsSecurity
 import qrcode
 from io import BytesIO
 from django.core.files.base import ContentFile
+from rest_framework.decorators import action # type: ignore
+from datetime import timedelta, datetime, timezone
+from rest_framework.exceptions import PermissionDenied # type: ignore
 
 User = get_user_model()
 
@@ -79,6 +82,50 @@ class GuestViewSet(viewsets.ModelViewSet):
     serializer_class = GuestSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_create(self, serializer):
+        if self.request.user.role != 'employee':
+            raise PermissionDenied("Only employees can invite guests.")
+
+        invited_by = EmployeeProfile.objects.get(user=self.request.user)
+        # Create guest with token but DO NOT generate QR code here
+        guest = serializer.save(invited_by=invited_by)
+        guest.save()  # Just save without QR code
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, IsSecurity])
+    def verify_token(self, request):
+        token = request.data.get("token")
+        if not token:
+            return Response({"detail": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            guest = Guest.objects.get(token=token)
+        except Guest.DoesNotExist:
+            return Response({"detail": "Invalid token."}, status=status.HTTP_404_NOT_FOUND)
+
+        now = datetime.now(timezone.utc)
+        if guest.created_at < now - timedelta(hours=24):
+            return Response({"detail": "Token has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if guest.is_verified:
+            return Response({"detail": "Guest already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark guest as verified
+        guest.is_verified = True
+
+        # Generate QR code NOW and save
+        qr_img = qrcode.make(str(guest.token))
+        buffer = BytesIO()
+        qr_img.save(buffer)
+        qr_file = ContentFile(buffer.getvalue(), f'{guest.token}.png')
+        guest.token_qr_code.save(f'{guest.token}.png', qr_file)
+        guest.save()
+
+        return Response({
+            "detail": "Guest token verified and QR code generated successfully.",
+            "guest_name": guest.full_name,
+            "visit_date": guest.visit_date
+        }, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         user = self.request.user
         if user.role == 'employee':
@@ -88,22 +135,6 @@ class GuestViewSet(viewsets.ModelViewSet):
             return Guest.objects.all()
         else:
             return Guest.objects.none()
-
-    def perform_create(self, serializer):
-        if self.request.user.role != 'employee':
-            return Response({"detail": "Only employees can invite guests."},
-                            status=status.HTTP_403_FORBIDDEN)
-
-        invited_by = EmployeeProfile.objects.get(user=self.request.user)
-        guest = serializer.save(invited_by=invited_by)
-
-        token = str(guest.token)
-        img = qrcode.make(token)
-        buffer = BytesIO()
-        img.save(buffer)
-        token_qr_image = ContentFile(buffer.getvalue(), f'{token}.png')
-        guest.token_qr_code.save(f'{token}.png', token_qr_image)
-        guest.save()
 
 
 class GuestDeviceViewSet(viewsets.ModelViewSet):
