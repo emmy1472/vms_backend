@@ -7,6 +7,7 @@ from io import BytesIO
 from django.core.files import File
 from PIL import Image  # type: ignore
 import uuid
+from .generate import generate_short_token
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -52,13 +53,21 @@ class Device(models.Model):
             self.qr_code.save(f"{self.serial_number}_qr.png", File(buffer), save=False)
         super().save(*args, **kwargs)
 
+
+
+
 class Guest(models.Model):
     full_name = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=15)
     purpose = models.TextField()
     invited_by = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
-    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    token = models.CharField(
+        max_length=10,
+        unique=True,
+        editable=False,
+        default=generate_short_token
+    )
     token_qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
     is_verified = models.BooleanField(default=False)
     visit_date = models.DateField()
