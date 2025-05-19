@@ -1,13 +1,34 @@
 from rest_framework import serializers # type: ignore
 from django.contrib.auth import get_user_model
 from .models import EmployeeProfile, Device, Guest, GuestDevice, AccessLog
+# serializers.py
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer # type: ignore
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Add custom claim (optional)
+        token['username'] = user.username
+        token['role'] = user.role
+        token['must_change_password'] = user.must_change_password
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        # Add extra field to response
+        data['must_change_password'] = self.user.must_change_password
+        return data
+
 
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'is_active']
+        fields = ['id', 'username', 'email', 'role', 'is_active','must_change_password']
 
 
 class RegisterEmployeeSerializer(serializers.ModelSerializer):

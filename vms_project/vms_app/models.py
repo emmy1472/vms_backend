@@ -6,7 +6,6 @@ import qrcode
 from io import BytesIO
 from django.core.files import File
 from PIL import Image  # type: ignore
-import uuid
 from .generate import generate_short_token
 
 class User(AbstractUser):
@@ -17,6 +16,9 @@ class User(AbstractUser):
     )
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     is_active = models.BooleanField(default=True)
+    must_change_password = models.BooleanField(default=True)
+
+
     
 
 class EmployeeProfile(models.Model):

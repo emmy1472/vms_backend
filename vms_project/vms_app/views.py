@@ -14,6 +14,15 @@ from django.core.files.base import ContentFile
 from rest_framework.decorators import action # type: ignore
 from datetime import timedelta, datetime, timezone
 from rest_framework.exceptions import PermissionDenied # type: ignore
+from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore
+from .serializers import CustomTokenObtainPairSerializer
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
 
 User = get_user_model()
 
@@ -41,6 +50,45 @@ class EmployeeProfileViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         # Only return profile for the logged-in employee
         return EmployeeProfile.objects.filter(user=self.request.user)
+    
+    @action(detail=False, methods=['post'])
+    def change_password(self, request):
+        # Ensure the same permission classes apply to this action
+        self.check_permissions(request)
+
+        user = request.user
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not new_password or not confirm_password:
+            return Response(
+                {"detail": "Both password fields are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {"detail": "Passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as e:
+            return Response(
+                {"detail": e.messages},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(new_password)
+        if hasattr(user, 'must_change_password'):
+            user.must_change_password = False  # Only if this field exists
+        user.save()
+
+        return Response(
+            {"detail": "Password changed successfully."},
+            status=status.HTTP_200_OK
+        )
 
 
 class DeviceViewSet(viewsets.ModelViewSet):
