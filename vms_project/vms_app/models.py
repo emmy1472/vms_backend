@@ -30,6 +30,9 @@ class EmployeeProfile(models.Model):
     id_qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
     date_registered = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.user.get_full_name() or self.user.username
+
     def save(self, *args, **kwargs):
         if not self.id_qr_code:
             qr = qrcode.make(self.staff_id)
@@ -46,6 +49,9 @@ class Device(models.Model):
     qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
     date_registered = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.device_name
 
     def save(self, *args, **kwargs):
         if not self.qr_code:
