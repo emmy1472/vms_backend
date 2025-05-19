@@ -10,7 +10,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         (None, {'fields': ('role',)}),
     )
-    list_display = ['username', 'email', 'role', 'is_active', 'is_staff', 'is_superuser']
+    list_display = ['username', 'email', 'role', 'is_active', 'is_staff', 'is_superuser', 'must_change_password']
     list_filter = ['role', 'is_active']
     search_fields = ['username', 'email']
 
@@ -19,7 +19,7 @@ admin.site.register(User, UserAdmin)
 
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'full_name', 'department', 'position', 'staff_id', 'date_registered']
+    list_display = ['user', 'full_name', 'department', 'position', 'staff_id', 'id_qr_code', 'date_registered']
     search_fields = ['full_name', 'department', 'staff_id']
 
 @admin.register(Device)
@@ -30,7 +30,7 @@ class DeviceAdmin(admin.ModelAdmin):
 
 @admin.register(Guest)
 class GuestAdmin(admin.ModelAdmin):
-    list_display = ['full_name', 'phone', 'purpose', 'invited_by', 'visit_date', 'is_verified']
+    list_display = ['full_name', 'phone', 'purpose', 'invited_by', 'token', 'visit_date', 'is_verified', ]
     search_fields = ['full_name', 'phone']
     list_filter = ['is_verified', 'visit_date']
 
