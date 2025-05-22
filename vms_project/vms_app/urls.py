@@ -1,14 +1,15 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter # type: ignore
-from .views import  EmployeeProfileViewSet, DeviceViewSet, GuestViewSet, GuestDeviceViewSet, AccessLogViewSet
+from .views import EmployeeViewSet, EmployeeProfileViewSet, DeviceViewSet, GuestViewSet, AccessLogViewSet
 from rest_framework_simplejwt.views import  TokenRefreshView # type: ignore
 from .views import CustomTokenObtainPairView
 
 router = DefaultRouter()
+router.register(r'employees', EmployeeViewSet, basename='employee')
 router.register(r'employee-profiles', EmployeeProfileViewSet, basename='employeeprofile')
 router.register(r'devices', DeviceViewSet, basename='device')
 router.register(r'guests', GuestViewSet, basename='guest')
-router.register(r'guest-devices', GuestDeviceViewSet, basename='guestdevice')
+
 router.register(r'access-logs', AccessLogViewSet, basename='accesslog')
 
 urlpatterns = [

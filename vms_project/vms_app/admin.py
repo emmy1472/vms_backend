@@ -3,13 +3,21 @@ from django.contrib import admin
 # Register your models here.
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, EmployeeProfile, Device, Guest, GuestDevice, AccessLog
+from .models import User, EmployeeProfile, Device, Guest, AccessLog
 
 # Extend the default UserAdmin to show custom fields
 class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
-        (None, {'fields': ('role',)}),
+        (None, {'fields': ('role', 'must_change_password')}),
     )
+
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'email', 'password1', 'password2', 'role', 'must_change_password'),
+        }),
+    )
+
     list_display = ['username', 'email', 'role', 'is_active', 'is_staff', 'is_superuser', 'must_change_password']
     list_filter = ['role', 'is_active']
     search_fields = ['username', 'email']
@@ -34,9 +42,7 @@ class GuestAdmin(admin.ModelAdmin):
     search_fields = ['full_name', 'phone']
     list_filter = ['is_verified', 'visit_date']
 
-@admin.register(GuestDevice)
-class GuestDeviceAdmin(admin.ModelAdmin):
-    list_display = ['guest', 'device_name', 'serial_number', 'date_registered']
+
 
 @admin.register(AccessLog)
 class AccessLogAdmin(admin.ModelAdmin):

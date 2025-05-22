@@ -17,6 +17,8 @@ class User(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     is_active = models.BooleanField(default=True)
     must_change_password = models.BooleanField(default=True)
+    email = models.EmailField(null=True)
+
 
 
     
@@ -89,20 +91,7 @@ class Guest(models.Model):
             self.token_qr_code.save(f"{self.full_name}_token_qr.png", File(buffer), save=False)
         super().save(*args, **kwargs)
 
-class GuestDevice(models.Model):
-    guest = models.ForeignKey(Guest, on_delete=models.CASCADE)
-    device_name = models.CharField(max_length=100)
-    serial_number = models.CharField(max_length=100, unique=True)
-    qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
-    date_registered = models.DateTimeField(auto_now_add=True)
 
-    def save(self, *args, **kwargs):
-        if not self.qr_code:
-            qr = qrcode.make(self.serial_number)
-            buffer = BytesIO()
-            qr.save(buffer)
-            self.qr_code.save(f"{self.serial_number}_qr.png", File(buffer), save=False)
-        super().save(*args, **kwargs)
 
 class AccessLog(models.Model):
     PERSON_TYPE_CHOICES = (
