@@ -23,6 +23,8 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.core.mail import send_mail, BadHeaderError
 from smtplib import SMTPException
+from rest_framework.decorators import api_view, permission_classes # type: ignore
+from rest_framework.views import APIView # type: ignore
 
 
 
@@ -123,6 +125,16 @@ class EmployeeProfileViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
+    @action(detail=False, methods=['post'], url_path='scan-qr')
+    def scan_qr(self, request):
+        staff_id = request.data.get('staff_id')
+        if not staff_id:
+            return Response({"detail": "staff_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            profile = EmployeeProfile.objects.get(staff_id=staff_id)
+            return Response(profile.get_full_info())  # <-- Ensure this line returns get_full_info()
+        except EmployeeProfile.DoesNotExist:
+            return Response({"detail": "EmployeeProfile not found."}, status=status.HTTP_404_NOT_FOUND)
 
 class DeviceViewSet(viewsets.ModelViewSet):
     """
@@ -158,7 +170,16 @@ class DeviceViewSet(viewsets.ModelViewSet):
 
         serializer.save(qr_code=qr_image)
 
-
+    @action(detail=False, methods=['post'], url_path='scan-qr')
+    def scan_qr(self, request):
+        serial_number = request.data.get('serial_number')
+        if not serial_number:
+            return Response({"detail": "serial_number is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            device = Device.objects.get(serial_number=serial_number)
+            return Response(device.get_full_info())  # <-- Ensure this line returns get_full_info()
+        except Device.DoesNotExist:
+            return Response({"detail": "Device not found."}, status=status.HTTP_404_NOT_FOUND)
 
 class GuestViewSet(viewsets.ModelViewSet):
     """
@@ -209,7 +230,16 @@ class GuestViewSet(viewsets.ModelViewSet):
         else:
             return Guest.objects.none()
 
-
+    @action(detail=False, methods=['post'], url_path='scan-qr')
+    def scan_qr(self, request):
+        token = request.data.get('token')
+        if not token:
+            return Response({"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            guest = Guest.objects.get(token=token)
+            return Response(guest.get_full_info())  # <-- Ensure this line returns get_full_info()
+        except Guest.DoesNotExist:
+            return Response({"detail": "Guest not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 

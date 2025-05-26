@@ -43,6 +43,24 @@ class EmployeeProfile(models.Model):
             self.id_qr_code.save(f"{self.staff_id}_qr.png", File(buffer), save=False)
         super().save(*args, **kwargs)
 
+    def get_full_info(self):
+        return {
+            "id": self.id,
+            "user": {
+                "id": self.user.id,
+                "username": self.user.username,
+                "email": self.user.email,
+                "role": self.user.role,
+                "is_active": self.user.is_active,
+            },
+            "full_name": self.full_name,
+            "department": self.department,
+            "position": self.position,
+            "staff_id": self.staff_id,
+            "id_qr_code_url": self.id_qr_code.url if self.id_qr_code else None,
+            "date_registered": self.date_registered,
+        }
+
 class Device(models.Model):
     owner_employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, null=True, blank=True)
     owner_guest = models.ForeignKey('Guest', on_delete=models.CASCADE, null=True, blank=True)
@@ -62,6 +80,18 @@ class Device(models.Model):
             qr.save(buffer)
             self.qr_code.save(f"{self.serial_number}_qr.png", File(buffer), save=False)
         super().save(*args, **kwargs)
+
+    def get_full_info(self):
+        return {
+            "id": self.id,
+            "owner_employee": self.owner_employee.get_full_info() if self.owner_employee else None,
+            "owner_guest": self.owner_guest.get_full_info() if self.owner_guest else None,
+            "device_name": self.device_name,
+            "serial_number": self.serial_number,
+            "qr_code_url": self.qr_code.url if self.qr_code else None,
+            "date_registered": self.date_registered,
+            "is_verified": self.is_verified,
+        }
 
 
 
@@ -90,6 +120,26 @@ class Guest(models.Model):
             qr.save(buffer)
             self.token_qr_code.save(f"{self.full_name}_token_qr.png", File(buffer), save=False)
         super().save(*args, **kwargs)
+
+    def get_full_info(self):
+        return {
+            "id": self.id,
+            "full_name": self.full_name,
+            "email": self.email,
+            "phone": self.phone,
+            "purpose": self.purpose,
+            # Avoid recursion: only include invited_by's basic info to prevent infinite nesting
+            "invited_by": {
+                "id": self.invited_by.id,
+                "full_name": self.invited_by.full_name,
+                "staff_id": self.invited_by.staff_id,
+            } if self.invited_by else None,
+            "token": self.token,
+            "token_qr_code_url": self.token_qr_code.url if self.token_qr_code else None,
+            "is_verified": self.is_verified,
+            "visit_date": self.visit_date,
+            "created_at": self.created_at,
+        }
 
 
 

@@ -20,3 +20,9 @@ urlpatterns = [
     # API routes via router
     path('', include(router.urls)),
 ]
+
+# No changes needed. The @action methods you added to your ViewSets are automatically routed by DRF's DefaultRouter.
+# You can access them at:
+#   /employee-profiles/scan-qr/
+#   /devices/scan-qr/
+#   /guests/scan-qr/

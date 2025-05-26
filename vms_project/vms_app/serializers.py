@@ -77,3 +77,11 @@ class AccessLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AccessLog
         fields = ['id', 'person_type', 'person_id', 'device_serial', 'scanned_by', 'time_in', 'time_out', 'status']
+
+# If your scan-qr endpoints are returning only the id, it's likely because your ViewSets are using ModelSerializers for responses.
+# To return full info, update your scan_qr actions to return the output of get_full_info(), not the serializer.
+
+# In your views.py, make sure you have:
+# return Response(instance.get_full_info())
+# instead of
+# return Response(self.get_serializer(instance).data)
