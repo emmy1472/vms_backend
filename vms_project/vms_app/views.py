@@ -80,7 +80,7 @@ class EmployeeProfileViewSet(viewsets.ReadOnlyModelViewSet):
     Employee views their own profile
     """
     serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsAuthenticated, IsEmployee]
+    permission_classes = [IsAuthenticated]  # <-- Change to allow any authenticated user
 
     def get_queryset(self):
         # Only return profile for the logged-in employee
@@ -135,6 +135,16 @@ class EmployeeProfileViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(profile.get_full_info())  # <-- Ensure this line returns get_full_info()
         except EmployeeProfile.DoesNotExist:
             return Response({"detail": "EmployeeProfile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        """
+        Returns the username of the currently authenticated user.
+        """
+        user = request.user
+        if not user or not user.is_authenticated:
+            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"username": user.username})
 
 class DeviceViewSet(viewsets.ModelViewSet):
     """
