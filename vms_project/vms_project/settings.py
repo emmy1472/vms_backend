@@ -94,17 +94,19 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 CORS_ALLOW_ALL_ORIGINS = False
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
-SESSION_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = False  # False for local dev (no HTTPS)
-CSRF_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE = False     # False for local dev (no HTTPS)
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = False  # False for local dev
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = False     # False for local dev
 
 
 # Password validation
