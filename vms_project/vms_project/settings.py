@@ -113,6 +113,13 @@ APPEND_SLASH = False
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
+SESSION_COOKIE_SAMESITE = "None"  # or "Lax" if not using cross-site
+SESSION_COOKIE_SECURE = True      # True if using HTTPS
+
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
