@@ -146,6 +146,43 @@ class EmployeeProfileViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
         return Response({"username": user.username})
 
+    @action(detail=False, methods=['get'], url_path='dashboard')
+    def dashboard(self, request):
+        """
+        Returns detailed info for the logged-in employee, including device count,
+        guest count, and attendance (in/out) count.
+        """
+        try:
+            profile = EmployeeProfile.objects.get(user=request.user)
+        except EmployeeProfile.DoesNotExist:
+            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Devices
+        devices = Device.objects.filter(owner_employee=profile)
+        device_count = devices.count()
+
+        # Guests invited
+        guest_count = Guest.objects.filter(invited_by=profile).count()
+
+        # Attendance logs (in/out)
+        from django.contrib.contenttypes.models import ContentType
+        employee_type = ContentType.objects.get_for_model(profile)
+        access_logs = AccessLog.objects.filter(
+            content_type=employee_type,
+            person_id=profile.id
+        )
+        attendance_in = access_logs.filter(status='in').count()
+        attendance_out = access_logs.filter(status='out').count()
+
+        data = profile.get_full_info()
+        data["device_count"] = device_count
+        data["devices"] = [device.get_full_info() for device in devices]
+        data["guest_count"] = guest_count
+        data["attendance_in"] = attendance_in
+        data["attendance_out"] = attendance_out
+
+        return Response(data)
+
 class DeviceViewSet(viewsets.ModelViewSet):
     """
     Security registers devices; Employees can view their own devices.
