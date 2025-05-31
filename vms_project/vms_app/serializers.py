@@ -32,18 +32,16 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterEmployeeSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-
     class Meta:
         model = User
-        fields = ['username', 'email', 'password']  # Removed 'role'
+        fields = ['username', 'email']  # No password field
 
     def create(self, validated_data):
         return User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
-            password=validated_data['password'],
-            role='employee'  # Still set internally
+            password="Welcome$",  # Always set default password
+            role='employee'
         )
 
 

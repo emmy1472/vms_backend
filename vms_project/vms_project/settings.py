@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-cg!^7&ihgkj*qxhl4#3wak#^&uwgolh6iegac)ou*hl(z&&rhi
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', '127.0.0.1:5173']
+ALLOWED_HOSTS = ['127.0.0.1', '127.0.0.1:5173', 'localhost:8000', 'loclhost']
 
 AUTH_USER_MODEL = 'vms_app.User'
 
@@ -156,6 +156,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -166,7 +167,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'vms_app' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

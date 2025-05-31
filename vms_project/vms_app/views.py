@@ -45,16 +45,36 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def perform_create(self, serializer):
-        user = serializer.save()
+        # Set default password "Welcome$" for new users
+        user = serializer.save(password="Welcome$")
 
         try:
-            sent_count = send_mail(
-                subject="Welcome to NETCO Visitor Management System",
-                message=f"Hi {user.username}, your account has been created Pasword: Welcome$. Please log in and change your password.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
+            # Use EmailMessage for more control over the email
+            from django.template.loader import render_to_string
+            from django.utils.html import strip_tags
+
+            # Prepare HTML email with logo and app name as sender
+            html_message = render_to_string(
+                'welcome_email.html',
+                {
+                    'username': user.username,
+                    'app_name': 'NETCO Visitor Management System',
+                    # Use your project base URL (domain or localhost) + static path
+                    'logo_url': 'http://127.0.0.1:8000/static/logo.png',  # Project URL + static path
+                    'default_password': 'Welcome$',
+                }
             )
+            plain_message = strip_tags(html_message)
+
+            email = EmailMessage(
+                subject="Welcome to NETCO Visitor Management System",
+                body=html_message,
+                from_email='"NETCO Visitor Management System" <{}>'.format(settings.DEFAULT_FROM_EMAIL),
+                to=[user.email],
+            )
+            email.content_subtype = "html"  # Send as HTML
+
+            sent_count = email.send(fail_silently=False)
             print(f"send_mail returned: {sent_count}")  # Debug: check if email was sent
             if sent_count == 1:
                 print("Email sent successfully!")
