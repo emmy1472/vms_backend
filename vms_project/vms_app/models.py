@@ -30,6 +30,7 @@ class EmployeeProfile(models.Model):
     position = models.CharField(max_length=100)
     staff_id = models.CharField(max_length=50, unique=True)
     id_qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
     date_registered = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -58,8 +59,22 @@ class EmployeeProfile(models.Model):
             "position": self.position,
             "staff_id": self.staff_id,
             "id_qr_code_url": self.id_qr_code.url if self.id_qr_code else None,
+            "profile_picture_url": self.profile_picture.url if self.profile_picture else None,
             "date_registered": self.date_registered,
         }
+
+    def save(self, *args, **kwargs):
+        # Optionally, you can resize the profile picture if needed
+        super().save(*args, **kwargs)
+        if self.profile_picture:
+            try:
+                img = Image.open(self.profile_picture.path)
+                if img.height > 400 or img.width > 400:
+                    output_size = (400, 400)
+                    img.thumbnail(output_size)
+                    img.save(self.profile_picture.path)
+            except Exception:
+                pass  # Ignore errors for non-image files or missing file
 
 class Device(models.Model):
     owner_employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, null=True, blank=True)

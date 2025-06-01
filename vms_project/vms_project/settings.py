@@ -26,7 +26,45 @@ SECRET_KEY = 'django-insecure-cg!^7&ihgkj*qxhl4#3wak#^&uwgolh6iegac)ou*hl(z&&rhi
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', '127.0.0.1:5173', 'localhost:8000', 'loclhost']
+# Define your base hosts/origins in one place
+BASE_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "localhost:8000",
+    "127.0.0.1:5173",
+    "localhost:5173",
+    "6854-102-88-111-46.ngrok-free.app",
+    "your-production-domain.com",  # Add your production domain here
+    # Add more as needed
+]
+
+# For ngrok or dynamic domains, you can append them at runtime if needed
+NGROK_DOMAIN = os.environ.get("NGROK_DOMAIN")
+if NGROK_DOMAIN:
+    BASE_HOSTS.append(NGROK_DOMAIN)
+
+# ALLOWED_HOSTS
+ALLOWED_HOSTS = BASE_HOSTS
+
+APP_LOGO_URL = "https://6854-102-88-111-46.ngrok-free.app/static/logo.png"
+
+# CORS_ALLOWED_ORIGINS
+CORS_ALLOWED_ORIGINS = [
+    f"http://{host}" if not host.startswith("http") else host
+    for host in BASE_HOSTS
+] + [
+    f"https://{host}" if not host.startswith("http") else host
+    for host in BASE_HOSTS
+]
+
+# CSRF_TRUSTED_ORIGINS
+CSRF_TRUSTED_ORIGINS = [
+    f"http://{host}" if not host.startswith("http") else host
+    for host in BASE_HOSTS
+] + [
+    f"https://{host}" if not host.startswith("http") else host
+    for host in BASE_HOSTS
+]
 
 AUTH_USER_MODEL = 'vms_app.User'
 
@@ -102,12 +140,14 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://6854-102-88-111-46.ngrok-free.app"
 ]
 CORS_ALLOW_ALL_ORIGINS = False
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://6854-102-88-111-46.ngrok-free.app"
 ]
 
 SESSION_COOKIE_SAMESITE = "Lax"

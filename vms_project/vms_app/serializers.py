@@ -48,10 +48,14 @@ class RegisterEmployeeSerializer(serializers.ModelSerializer):
 
 class EmployeeProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = EmployeeProfile
-        fields = ['id', 'user', 'full_name', 'department', 'position', 'staff_id', 'id_qr_code', 'date_registered']
+        fields = [
+            'id', 'user', 'full_name', 'department', 'position', 'staff_id',
+            'id_qr_code', 'profile_picture', 'date_registered'
+        ]
 
 
 class DeviceSerializer(serializers.ModelSerializer):

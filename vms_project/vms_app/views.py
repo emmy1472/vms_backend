@@ -25,6 +25,7 @@ from django.core.mail import send_mail, BadHeaderError
 from smtplib import SMTPException
 from rest_framework.decorators import api_view, permission_classes # type: ignore
 from rest_framework.views import APIView # type: ignore
+import os
 
 
 
@@ -49,18 +50,16 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         user = serializer.save(password="Welcome$")
 
         try:
-            # Use EmailMessage for more control over the email
             from django.template.loader import render_to_string
             from django.utils.html import strip_tags
 
-            # Prepare HTML email with logo and app name as sender
+            # Use your HTML template for the welcome email
             html_message = render_to_string(
                 'welcome_email.html',
                 {
                     'username': user.username,
                     'app_name': 'NETCO Visitor Management System',
-                    # Use your project base URL (domain or localhost) + static path
-                    'logo_url': 'http://127.0.0.1:8000/static/logo.png',  # Project URL + static path
+                    'logo_url': 'https://yourdomain.com/static/logo.png',  # <-- Set to your public/static logo URL
                     'default_password': 'Welcome$',
                 }
             )
@@ -75,7 +74,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             email.content_subtype = "html"  # Send as HTML
 
             sent_count = email.send(fail_silently=False)
-            print(f"send_mail returned: {sent_count}")  # Debug: check if email was sent
+            print(f"send_mail returned: {sent_count}")
             if sent_count == 1:
                 print("Email sent successfully!")
             else:
@@ -91,19 +90,17 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             raise ValidationError({"detail": f"An error occurred while sending email: {str(e)}"})
 
     def get_queryset(self):
-        # Admin sees all employees
         return User.objects.filter(role='employee')
 
 
-class EmployeeProfileViewSet(viewsets.ReadOnlyModelViewSet):
+class EmployeeProfileViewSet(viewsets.ModelViewSet):
     """
-    Employee views their own profile
+    Employee views and updates their own profile, including profile picture.
     """
     serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsAuthenticated]  # <-- Change to allow any authenticated user
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Only return profile for the logged-in employee
         return EmployeeProfile.objects.filter(user=self.request.user)
     
     @action(detail=False, methods=['post'])
@@ -224,16 +221,15 @@ class DeviceViewSet(viewsets.ModelViewSet):
         if self.request.user.role != 'security':
             raise PermissionDenied("Only security can register devices.")
 
+        # Ensure 'owner' is present and validated by the serializer
+        if 'owner' not in serializer.validated_data or not serializer.validated_data['owner']:
+            raise ValidationError("Device must be linked to an employee.")
+
         serial = serializer.validated_data['serial_number']
         img = qrcode.make(serial)
         buffer = BytesIO()
         img.save(buffer)
         qr_image = ContentFile(buffer.getvalue(), f'{serial}.png')
-
-        # Set owner manually from validated data or foreign key
-        employee = serializer.validated_data.get('owner')
-        if not employee:
-            raise ValidationError("Device must be linked to an employee.")
 
         serializer.save(qr_code=qr_image)
 
@@ -260,8 +256,6 @@ class GuestViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Only employees can invite guests.")
 
         invited_by = EmployeeProfile.objects.get(user=self.request.user)
-        
-        # Create guest object with token
         guest = serializer.save(invited_by=invited_by)
 
         # Generate QR code image from token
@@ -275,16 +269,34 @@ class GuestViewSet(viewsets.ModelViewSet):
         guest.token_qr_code.save(f'{guest.token}.png', qr_file)
         guest.save()
 
-        # Send email to guest with QR code attached
+        # Get logo URL from settings for dynamic use
+        logo_url = settings.APP_LOGO_URL
+
+        # Send email to guest with QR code attached and inline
         if guest.email:
+            from django.template.loader import render_to_string
+
+            html_message = render_to_string(
+                'guest_invite_email.html',
+                {
+                    'full_name': guest.full_name,
+                    'app_name': 'NETCO Visitor Management System',
+                    'logo_url': logo_url,
+                }
+            )
+
             email = EmailMessage(
                 subject="You're Invited to NETCO",
-                body=f"Dear {guest.full_name},\n\nYou have been invited to visit NETCO.\n"
-                     f"Please find your visit token QR code attached.\n\nThank you.",
-                from_email="emmanuelakinmolayan1@gmail.com",
+                body=html_message,
+                from_email='"NETCO Visitor Management System" <{}>'.format(settings.DEFAULT_FROM_EMAIL),
                 to=[guest.email],
             )
+            email.content_subtype = "html"
+
+            # Attach QR code as an attachment (most reliable for all clients)
             email.attach(f'{guest.token}.png', buffer.getvalue(), 'image/png')
+            # Inline display via Content-ID is not reliable across all clients, so attachment is preferred
+
             email.send(fail_silently=False)
 
     def get_queryset(self):
@@ -319,4 +331,5 @@ class AccessLogViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get_queryset(self):
+        # For future: filter by user/date if needed for dashboards
         return AccessLog.objects.all()
