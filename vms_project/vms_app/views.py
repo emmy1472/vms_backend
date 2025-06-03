@@ -26,6 +26,7 @@ from smtplib import SMTPException
 from rest_framework.decorators import api_view, permission_classes # type: ignore
 from rest_framework.views import APIView # type: ignore
 import os
+from django.http import FileResponse, Http404
 
 
 
@@ -199,6 +200,19 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         data["attendance_out"] = attendance_out
 
         return Response(data)
+
+    @action(detail=True, methods=['get'], url_path='qr-code')
+    def qr_code(self, request, pk=None):
+        """
+        Returns the QR code image for the employee profile.
+        """
+        try:
+            profile = self.get_object()
+            if not profile.id_qr_code:
+                raise Http404("QR code not found.")
+            return FileResponse(profile.id_qr_code.open('rb'), content_type='image/png')
+        except Exception:
+            raise Http404("QR code not found.")
 
 class DeviceViewSet(viewsets.ModelViewSet):
     """
