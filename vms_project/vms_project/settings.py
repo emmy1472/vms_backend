@@ -33,7 +33,7 @@ BASE_HOSTS = [
     "localhost:8000",
     "127.0.0.1:5173",
     "localhost:5173",
-    "268e-102-88-111-89.ngrok-free.app",
+    "b780-197-210-28-87.ngrok-free.app",
     "your-production-domain.com",  # Add your production domain here
     # Add more as needed
 ]
@@ -46,7 +46,7 @@ if NGROK_DOMAIN:
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = BASE_HOSTS
 
-APP_LOGO_URL = "https://268e-102-88-111-89.ngrok-free.app/static/logo.png"
+APP_LOGO_URL = "https://b780-197-210-28-87.ngrok-free.app/static/logo.png"
 
 # CORS_ALLOWED_ORIGINS
 CORS_ALLOWED_ORIGINS = [
@@ -140,14 +140,14 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://268e-102-88-111-89.ngrok-free.app"
+    "https://localhost:8000"
 ]
 CORS_ALLOW_ALL_ORIGINS = False
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://268e-102-88-111-89.ngrok-free.app"
+    "https://localhost:8000"
 ]
 
 SESSION_COOKIE_SAMESITE = "Lax"

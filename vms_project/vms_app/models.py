@@ -37,12 +37,28 @@ class EmployeeProfile(models.Model):
         return self.user.get_full_name() or self.user.username
 
     def save(self, *args, **kwargs):
+    # Generate QR code if it doesn't exist
         if not self.id_qr_code:
             qr = qrcode.make(self.staff_id)
             buffer = BytesIO()
             qr.save(buffer)
+            buffer.seek(0)
             self.id_qr_code.save(f"{self.staff_id}_qr.png", File(buffer), save=False)
+
+    # Call the actual save method
         super().save(*args, **kwargs)
+
+    # Resize profile picture if necessary
+        if self.profile_picture:
+            try:
+                img = Image.open(self.profile_picture.path)
+                if img.height > 400 or img.width > 400:
+                    output_size = (400, 400)
+                    img.thumbnail(output_size)
+                    img.save(self.profile_picture.path)
+            except Exception:
+                pass  # Safely ignore if file not accessible or not an image
+
 
     def get_full_info(self):
         return {
@@ -63,18 +79,7 @@ class EmployeeProfile(models.Model):
             "date_registered": self.date_registered,
         }
 
-    def save(self, *args, **kwargs):
-        # Optionally, you can resize the profile picture if needed
-        super().save(*args, **kwargs)
-        if self.profile_picture:
-            try:
-                img = Image.open(self.profile_picture.path)
-                if img.height > 400 or img.width > 400:
-                    output_size = (400, 400)
-                    img.thumbnail(output_size)
-                    img.save(self.profile_picture.path)
-            except Exception:
-                pass  # Ignore errors for non-image files or missing file
+    
 
 class Device(models.Model):
     owner_employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, null=True, blank=True)

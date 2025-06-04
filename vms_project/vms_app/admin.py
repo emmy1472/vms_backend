@@ -4,9 +4,12 @@ from django.contrib import admin
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User, EmployeeProfile, Device, Guest, AccessLog
+from .forms import CustomUserCreationForm
 
 # Extend the default UserAdmin to show custom fields
 class UserAdmin(BaseUserAdmin):
+    add_form = CustomUserCreationForm
+
     fieldsets = BaseUserAdmin.fieldsets + (
         (None, {'fields': ('role', 'must_change_password')}),
     )
@@ -22,11 +25,8 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ['role', 'is_active']
     search_fields = ['username', 'email']
 
-    def save_model(self, request, obj, form, change):
-        if not change and not obj.pk:
-            # Set default password only when creating a new user via admin
-            obj.set_password("Welcome$")
-        super().save_model(request, obj, form, change)
+    
+
 
 # Register User using the custom admin
 admin.site.register(User, UserAdmin)

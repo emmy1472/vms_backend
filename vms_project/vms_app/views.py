@@ -214,6 +214,49 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         except Exception:
             raise Http404("QR code not found.")
 
+    @action(detail=False, methods=['get'], url_path='qr-code')
+    def my_qr_code(self, request):
+        """
+        Returns the QR code image for the currently authenticated employee.
+        """
+        try:
+            profile = EmployeeProfile.objects.get(user=request.user)
+            if not profile.id_qr_code:
+                raise Http404("QR code not found.")
+            return FileResponse(profile.id_qr_code.open('rb'), content_type='image/png')
+        except EmployeeProfile.DoesNotExist:
+            raise Http404("Profile not found.")
+        except Exception:
+            raise Http404("QR code not found.")
+
+    @action(detail=False, methods=['get'], url_path='attendance')
+    def attendance(self, request):
+        """
+        Returns a list of attendance logs for the logged-in employee.
+        Each log contains date, time_in, time_out, and status.
+        """
+        try:
+            profile = EmployeeProfile.objects.get(user=request.user)
+        except EmployeeProfile.DoesNotExist:
+            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        from django.contrib.contenttypes.models import ContentType
+        employee_type = ContentType.objects.get_for_model(profile)
+        logs = AccessLog.objects.filter(
+            content_type=employee_type,
+            person_id=profile.id
+        ).order_by('-time_in')
+
+        data = []
+        for log in logs:
+            data.append({
+                "date": log.time_in.date() if log.time_in else None,
+                "time_in": log.time_in.strftime("%H:%M:%S") if log.time_in else None,
+                "time_out": log.time_out.strftime("%H:%M:%S") if log.time_out else None,
+                "status": log.status,
+            })
+        return Response(data)
+
 class DeviceViewSet(viewsets.ModelViewSet):
     """
     Security registers devices; Employees can view their own devices.
