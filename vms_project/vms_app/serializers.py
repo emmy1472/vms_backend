@@ -13,6 +13,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['username'] = user.username
         token['role'] = user.role
         token['must_change_password'] = user.must_change_password
+        token['reset_otp'] = getattr(user, 'reset_otp', None)
         return token
 
     def validate(self, attrs):
@@ -20,6 +21,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Add extra field to response
         data['must_change_password'] = self.user.must_change_password
+        data['reset_otp'] = getattr(self.user, 'reset_otp', None)
         return data
 
 
@@ -28,7 +30,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'is_active','must_change_password']
+        fields = ['id', 'username', 'email', 'role', 'is_active', 'must_change_password', 'reset_otp']
 
 
 class RegisterEmployeeSerializer(serializers.ModelSerializer):

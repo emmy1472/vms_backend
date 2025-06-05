@@ -1,6 +1,6 @@
 from rest_framework import viewsets, status # type: ignore
 from rest_framework.response import Response # type: ignore
-from rest_framework.permissions import IsAuthenticated # type: ignore
+from rest_framework.permissions import IsAuthenticated, AllowAny # type: ignore
 from django.contrib.auth import get_user_model
 from .serializers import (
     RegisterEmployeeSerializer, EmployeeProfileSerializer, DeviceSerializer,
@@ -27,6 +27,7 @@ from rest_framework.decorators import api_view, permission_classes # type: ignor
 from rest_framework.views import APIView # type: ignore
 import os
 from django.http import FileResponse, Http404
+from django.utils.crypto import get_random_string
 
 
 
@@ -104,7 +105,18 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return EmployeeProfile.objects.filter(user=self.request.user)
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['get'], url_path='prompt_change')
+    def get_must_change_password(self, request):
+        """
+        Returns must_change_password status for the current user.
+        """
+        user = request.user
+        must_change = False
+        if hasattr(user, 'must_change_password'):
+            must_change = bool(getattr(user, 'must_change_password'))
+        return Response({"must_change_password": must_change})
+
+    @action(detail=False, methods=['post'], url_path='change_password')
     def change_password(self, request):
         # Ensure the same permission classes apply to this action
         self.check_permissions(request)
@@ -139,7 +151,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         user.save()
 
         return Response(
-            {"detail": "Password changed successfully."},
+            {"detail": "Password changed successfully.", "must_change_password": False},
             status=status.HTTP_200_OK
         )
 
@@ -157,12 +169,16 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
         """
-        Returns the username of the currently authenticated user.
+        Returns the username and role of the currently authenticated user.
         """
         user = request.user
         if not user or not user.is_authenticated:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
-        return Response({"username": user.username})
+        # Add role to the response
+        return Response({
+            "username": user.username,
+            "role": getattr(user, "role", None)
+        })
 
     @action(detail=False, methods=['get'], url_path='dashboard')
     def dashboard(self, request):
@@ -256,6 +272,77 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 "status": log.status,
             })
         return Response(data)
+
+    @action(detail=False, methods=['post'], url_path='forgot_password', permission_classes=[AllowAny])
+    def forgot_password(self, request):
+        """
+        Sends a one-time password (OTP) to the user's email for password reset.
+        """
+        email = request.data.get('email')
+        if not email:
+            return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            # Use case-insensitive search for email
+            user = get_user_model().objects.filter(email__iexact=email).first()
+            if not user:
+                return Response({"detail": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+            otp = get_random_string(length=6, allowed_chars='0123456789')
+            user.reset_otp = otp
+            user.save()
+            # Send OTP to email
+            subject = "Password Reset OTP"
+            message = f"Your OTP for password reset is: {otp}"
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+            return Response({"detail": "OTP sent to your email."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='verify_otp', permission_classes=[AllowAny])
+    def verify_otp(self, request):
+        """
+        Verifies the OTP sent to the user's email.
+        """
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        if not email or not otp:
+            return Response({"detail": "Email and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = get_user_model().objects.get(email=email)
+            if hasattr(user, 'reset_otp') and user.reset_otp == otp:
+                return Response({"detail": "OTP verified."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+        except get_user_model().DoesNotExist:
+            return Response({"detail": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'], url_path='reset_password', permission_classes=[AllowAny])
+    def reset_password(self, request):
+        """
+        Resets the user's password after OTP verification.
+        """
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+        if not email or not otp or not new_password or not confirm_password:
+            return Response({"detail": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if new_password != confirm_password:
+            return Response({"detail": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = get_user_model().objects.get(email=email)
+            if hasattr(user, 'reset_otp') and user.reset_otp == otp:
+                try:
+                    validate_password(new_password, user=user)
+                except ValidationError as e:
+                    return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+                user.set_password(new_password)
+                user.reset_otp = None
+                user.save()
+                return Response({"detail": "Password reset successful."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+        except get_user_model().DoesNotExist:
+            return Response({"detail": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
 class DeviceViewSet(viewsets.ModelViewSet):
     """

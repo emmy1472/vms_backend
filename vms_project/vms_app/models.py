@@ -18,6 +18,7 @@ class User(AbstractUser):
     is_active = models.BooleanField(default=True)
     must_change_password = models.BooleanField(default=True)
     email = models.EmailField(null=True)
+    reset_otp = models.CharField(max_length=10, blank=True, null=True)  # For password reset OTP
 
 
 
