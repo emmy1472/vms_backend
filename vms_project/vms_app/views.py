@@ -169,16 +169,25 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
         """
-        Returns the username and role of the currently authenticated user.
+        Returns the employee profile id, username, and role of the currently authenticated user.
         """
         user = request.user
         if not user or not user.is_authenticated:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
-        # Add role to the response
-        return Response({
-            "username": user.username,
-            "role": getattr(user, "role", None)
-        })
+        try:
+            profile = EmployeeProfile.objects.get(user=user)
+            return Response({
+                "id": profile.id,  # employee profile primary key
+                "username": user.username,
+                "role": getattr(user, "role", None),
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                }
+            })
+        except EmployeeProfile.DoesNotExist:
+            return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'], url_path='dashboard')
     def dashboard(self, request):
