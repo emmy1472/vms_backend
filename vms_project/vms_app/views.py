@@ -166,16 +166,29 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         except EmployeeProfile.DoesNotExist:
             return Response({"detail": "EmployeeProfile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['get'], url_path='me')
+    @action(detail=False, methods=['get', 'post'], url_path='me')
     def me(self, request):
         """
-        Returns the employee profile id, username, and role of the currently authenticated user.
+        GET: Returns the employee profile id, username, and role of the currently authenticated user.
+        POST: Allows the user to upload/update their profile picture.
         """
         user = request.user
         if not user or not user.is_authenticated:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
         try:
             profile = EmployeeProfile.objects.get(user=user)
+            if request.method == "POST":
+                # Handle profile picture upload
+                profile_picture = request.FILES.get("profile_picture")
+                if not profile_picture:
+                    return Response({"detail": "No profile_picture file provided."}, status=status.HTTP_400_BAD_REQUEST)
+                profile.profile_picture = profile_picture
+                profile.save()
+                return Response({
+                    "detail": "Profile picture updated successfully.",
+                    "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+                }, status=status.HTTP_200_OK)
+            # GET: Return profile info
             return Response({
                 "id": profile.id,  # employee profile primary key
                 "username": user.username,
@@ -184,7 +197,8 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "id": user.id,
                     "username": user.username,
                     "email": user.email,
-                }
+                },
+                "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
             })
         except EmployeeProfile.DoesNotExist:
             return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
