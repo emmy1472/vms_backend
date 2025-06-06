@@ -362,12 +362,8 @@ class DeviceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'employee':
-            return Device.objects.filter(owner__user=user)
-        elif user.role == 'security':
-            return Device.objects.all()
-        else:
-            return Device.objects.none()
+        # Fix: Use the correct relation for owner (owner_employee or owner_guest)
+        return Device.objects.filter(owner_employee__user=user)
 
     def perform_create(self, serializer):
         # Only security can register devices
