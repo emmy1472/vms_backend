@@ -557,9 +557,14 @@ class AccessLogViewSet(viewsets.ModelViewSet):
 
 class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):
-        if request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return request.user.is_authenticated and request.user.role == 'employee' or request.user.role == 'admin'
-        return request.user.is_authenticated and request.user.role == 'admin'
+        # Admin can do anything, employee can only read
+        if not request.user.is_authenticated:
+            return False
+        if getattr(request.user, "role", None) == "admin":
+            return True
+        if request.method in ['GET', 'HEAD', 'OPTIONS'] and getattr(request.user, "role", None) == "employee":
+            return True
+        return False
 
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all().order_by('-created_at')
