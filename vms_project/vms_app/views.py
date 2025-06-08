@@ -4,9 +4,9 @@ from rest_framework.permissions import IsAuthenticated, AllowAny # type: ignore
 from django.contrib.auth import get_user_model
 from .serializers import (
     RegisterEmployeeSerializer, EmployeeProfileSerializer, DeviceSerializer,
-    GuestSerializer, AccessLogSerializer
+    GuestSerializer, AccessLogSerializer, MessageSerializer
 )
-from .models import EmployeeProfile, Device, Guest, AccessLog
+from .models import EmployeeProfile, Device, Guest, AccessLog, Message
 from .permissions import IsAdmin, IsEmployee, IsSecurity
 import qrcode
 from io import BytesIO
@@ -25,8 +25,8 @@ from django.core.mail import send_mail, BadHeaderError
 from smtplib import SMTPException
 from rest_framework.decorators import api_view, permission_classes # type: ignore
 from rest_framework.views import APIView # type: ignore
-import os
-from django.http import FileResponse, Http404
+from rest_framework.permissions import BasePermission # type: ignore
+from django.http import Http404, FileResponse
 from django.utils.crypto import get_random_string
 
 
@@ -103,14 +103,18 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return EmployeeProfile.objects.filter(user=self.request.user)
-    
+        # Allow both employee and admin to access their profile
+        user = self.request.user
+        # Always return the profile if it exists for the user
+        return EmployeeProfile.objects.filter(user=user)
+
     @action(detail=False, methods=['get'], url_path='prompt_change')
     def get_must_change_password(self, request):
         """
         Returns must_change_password status for the current user.
         """
         user = request.user
+        # Allow for both employee and admin
         must_change = False
         if hasattr(user, 'must_change_password'):
             must_change = bool(getattr(user, 'must_change_password'))
@@ -118,9 +122,8 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='change_password')
     def change_password(self, request):
-        # Ensure the same permission classes apply to this action
+        # Allow both employee and admin to change password
         self.check_permissions(request)
-
         user = request.user
         new_password = request.data.get('new_password')
         confirm_password = request.data.get('confirm_password')
@@ -147,7 +150,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
 
         user.set_password(new_password)
         if hasattr(user, 'must_change_password'):
-            user.must_change_password = False  # Only if this field exists
+            user.must_change_password = False
         user.save()
 
         return Response(
@@ -169,16 +172,19 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get', 'post'], url_path='me')
     def me(self, request):
         """
-        GET: Returns the employee profile id, username, and role of the currently authenticated user.
-        POST: Allows the user to upload/update their profile picture.
+        GET: Returns the profile id, username, and role of the currently authenticated user (employee or admin).
+        POST: Allows the user to upload/update their profile picture (if employee).
         """
         user = request.user
         if not user or not user.is_authenticated:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
         try:
-            profile = EmployeeProfile.objects.get(user=user)
+            # Try to get EmployeeProfile for both employee and admin
+            profile = EmployeeProfile.objects.filter(user=user).first()
             if request.method == "POST":
-                # Handle profile picture upload
+                # Only allow profile picture upload for users with a profile
+                if not profile:
+                    return Response({"detail": "No profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
                 profile_picture = request.FILES.get("profile_picture")
                 if not profile_picture:
                     return Response({"detail": "No profile_picture file provided."}, status=status.HTTP_400_BAD_REQUEST)
@@ -188,9 +194,9 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "detail": "Profile picture updated successfully.",
                     "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
                 }, status=status.HTTP_200_OK)
-            # GET: Return profile info
-            return Response({
-                "id": profile.id,  # employee profile primary key
+            # GET: Return profile info if exists, else just user info
+            result = {
+                "id": profile.id if profile else None,
                 "username": user.username,
                 "role": getattr(user, "role", None),
                 "user": {
@@ -198,10 +204,11 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "username": user.username,
                     "email": user.email,
                 },
-                "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
-            })
-        except EmployeeProfile.DoesNotExist:
-            return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
+                "profile_picture_url": profile.profile_picture.url if profile and profile.profile_picture else None
+            }
+            return Response(result)
+        except Exception:
+            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'], url_path='dashboard')
     def dashboard(self, request):
@@ -496,3 +503,128 @@ class AccessLogViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # For future: filter by user/date if needed for dashboards
         return AccessLog.objects.all()
+
+
+
+class IsAdminOrReadOnly(BasePermission):
+    def has_permission(self, request, view):
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return request.user.is_authenticated and request.user.role == 'employee' or request.user.role == 'admin'
+        return request.user.is_authenticated and request.user.role == 'admin'
+
+class MessageViewSet(viewsets.ModelViewSet):
+    queryset = Message.objects.all().order_by('-created_at')
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(sender=self.request.user)
+
+    def get_queryset(self):
+        # Employees and admin see all messages
+        return Message.objects.all().order_by('-created_at')
+
+
+
+class AdminOverviewAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        return Response({
+            "users": User.objects.count(),
+            "employees": EmployeeProfile.objects.count(),
+            "devices": Device.objects.count(),
+            "guests": Guest.objects.count(),
+            "messages": Message.objects.count(),
+            "access_logs": AccessLog.objects.count(),
+        })
+
+# Admin list endpoints for tables
+class AdminUsersAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        users = User.objects.all().values("id", "username", "email", "role", "is_active")
+        return Response(list(users))
+
+class AdminEmployeesAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        employees = EmployeeProfile.objects.all().values(
+            "id", "full_name", "department", "position", "staff_id"
+        )
+        return Response(list(employees))
+
+class AdminDevicesAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        devices = Device.objects.all()
+        data = []
+        for d in devices:
+            data.append({
+                "id": d.id,
+                "device_name": d.device_name,
+                "serial_number": d.serial_number,
+                "owner_employee_name": getattr(d.owner_employee, "full_name", None) if d.owner_employee else None,
+                "owner_guest_name": getattr(d.owner_guest, "full_name", None) if d.owner_guest else None,
+                "is_verified": d.is_verified,
+            })
+        return Response(data)
+
+class AdminGuestsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        guests = Guest.objects.all()
+        data = []
+        for g in guests:
+            data.append({
+                "id": g.id,
+                "full_name": g.full_name,
+                "phone": g.phone,
+                "purpose": g.purpose,
+                "invited_by_name": getattr(g.invited_by, "full_name", None) if g.invited_by else None,
+                "visit_date": g.visit_date,
+                "is_verified": g.is_verified,
+            })
+        return Response(data)
+
+class AdminMessagesAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        messages = Message.objects.all().order_by('-created_at')
+        data = []
+        for m in messages:
+            data.append({
+                "id": m.id,
+                "sender_username": getattr(m.sender, "username", None),
+                "content": m.content,
+                "created_at": m.created_at,
+            })
+        return Response(data)
+
+class AdminAccessLogsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        logs = AccessLog.objects.all().order_by('-time_in')
+        data = []
+        for l in logs:
+            data.append({
+                "id": l.id,
+                "person_type": l.person_type,
+                "person_id": l.person_id,
+                "device_serial": getattr(l.device, "serial_number", None) if l.device else None,
+                "scanned_by": getattr(l.scanned_by, "username", None) if l.scanned_by else None,
+                "time_in": l.time_in,
+                "time_out": l.time_out,
+                "status": l.status,
+            })
+        return Response(data)

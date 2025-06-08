@@ -1,15 +1,19 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter # type: ignore
-from .views import EmployeeViewSet, EmployeeProfileViewSet, DeviceViewSet, GuestViewSet, AccessLogViewSet
-from rest_framework_simplejwt.views import  TokenRefreshView # type: ignore
-from .views import CustomTokenObtainPairView
+from .views import (
+    EmployeeViewSet, EmployeeProfileViewSet, DeviceViewSet, GuestViewSet, AccessLogViewSet,
+    CustomTokenObtainPairView, MessageViewSet,
+    AdminOverviewAPIView, AdminUsersAPIView, AdminEmployeesAPIView, AdminDevicesAPIView,
+    AdminGuestsAPIView, AdminMessagesAPIView, AdminAccessLogsAPIView,
+)
+from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
 
 router = DefaultRouter()
 router.register(r'employees', EmployeeViewSet, basename='employee')
 router.register(r'employee-profiles', EmployeeProfileViewSet, basename='employeeprofile')
 router.register(r'devices', DeviceViewSet, basename='device')
 router.register(r'guests', GuestViewSet, basename='guest')
-
+router.register(r'messages', MessageViewSet, basename='message')
 router.register(r'access-logs', AccessLogViewSet, basename='accesslog')
 
 urlpatterns = [
@@ -17,7 +21,16 @@ urlpatterns = [
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # login
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # token refresh
 
-    # API routes via router
+    # Admin API endpoints
+    path('admin/overview/', AdminOverviewAPIView.as_view(), name='admin-overview'),
+    path('admin/users/', AdminUsersAPIView.as_view(), name='admin-users'),
+    path('admin/employees/', AdminEmployeesAPIView.as_view(), name='admin-employees'),
+    path('admin/devices/', AdminDevicesAPIView.as_view(), name='admin-devices'),
+    path('admin/guests/', AdminGuestsAPIView.as_view(), name='admin-guests'),
+    path('admin/messages/', AdminMessagesAPIView.as_view(), name='admin-messages'),
+    path('admin/access-logs/', AdminAccessLogsAPIView.as_view(), name='admin-access-logs'),
+
+    # DRF router endpoints
     path('', include(router.urls)),
 ]
 

@@ -3,7 +3,7 @@ from django.contrib import admin
 # Register your models here.
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, EmployeeProfile, Device, Guest, AccessLog
+from .models import User, EmployeeProfile, Device, Guest, AccessLog, Message
 from .forms import CustomUserCreationForm
 
 # Extend the default UserAdmin to show custom fields
@@ -54,4 +54,10 @@ class GuestAdmin(admin.ModelAdmin):
 class AccessLogAdmin(admin.ModelAdmin):
     list_display = ['person_type', 'person_id', 'device_serial', 'scanned_by', 'time_in', 'time_out', 'status']
     list_filter = ['status', 'person_type', 'time_in']
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ['id', 'sender', 'content', 'created_at']
+    search_fields = ['content', 'sender__username']
+    list_filter = ['created_at']
 

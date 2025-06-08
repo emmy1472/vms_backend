@@ -1,6 +1,6 @@
 from rest_framework import serializers # type: ignore
 from django.contrib.auth import get_user_model
-from .models import EmployeeProfile, Device, Guest, AccessLog
+from .models import EmployeeProfile, Device, Guest, AccessLog, Message
 # serializers.py
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer # type: ignore
 
@@ -99,6 +99,14 @@ class AccessLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AccessLog
         fields = ['id', 'person_type', 'person_id', 'device_serial', 'scanned_by', 'time_in', 'time_out', 'status']
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source="sender.username", read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ["id", "sender", "sender_username", "content", "created_at"]
+        read_only_fields = ["id", "sender", "sender_username", "created_at"]
 
 # If your scan-qr endpoints are returning only the id, it's likely because your ViewSets are using ModelSerializers for responses.
 # To return full info, update your scan_qr actions to return the output of get_full_info(), not the serializer.
