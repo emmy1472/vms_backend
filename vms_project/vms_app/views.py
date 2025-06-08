@@ -11,7 +11,7 @@ from .permissions import IsAdmin, IsEmployee, IsSecurity
 import qrcode
 from io import BytesIO
 from django.core.files.base import ContentFile
-from rest_framework.decorators import action # type: ignore
+from rest_framework.decorators import action, api_view, permission_classes # type: ignore
 from datetime import timedelta, datetime, timezone
 from rest_framework.exceptions import PermissionDenied # type: ignore
 from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore
@@ -23,11 +23,12 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.core.mail import send_mail, BadHeaderError
 from smtplib import SMTPException
-from rest_framework.decorators import api_view, permission_classes # type: ignore
 from rest_framework.views import APIView # type: ignore
 from rest_framework.permissions import BasePermission # type: ignore
 from django.http import Http404, FileResponse
 from django.utils.crypto import get_random_string
+from rest_framework.decorators import api_view, permission_classes # type: ignore
+from rest_framework.permissions import IsAuthenticated # type: ignore
 
 
 
@@ -96,17 +97,66 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
 
 class EmployeeProfileViewSet(viewsets.ModelViewSet):
-    """
-    Employee views and updates their own profile, including profile picture.
-    """
     serializer_class = EmployeeProfileSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Allow both employee and admin to access their profile
         user = self.request.user
-        # Always return the profile if it exists for the user
-        return EmployeeProfile.objects.filter(user=user)
+        # Only return a profile for employees, not for admins
+        if hasattr(user, "role") and user.role == "employee":
+            return EmployeeProfile.objects.filter(user=user)
+        return EmployeeProfile.objects.none()
+
+    @action(detail=False, methods=['get', 'post'], url_path='me')
+    def me(self, request):
+        """
+        GET: Returns the employee profile id, username, and role of the currently authenticated user.
+        POST: Allows the user to upload/update their profile picture.
+        """
+        user = request.user
+        if not user or not user.is_authenticated:
+            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        # Only allow employees to use this endpoint
+        if not hasattr(user, "role") or user.role != "employee":
+            # For admin, return basic user info (no profile)
+            return Response({
+                "id": None,
+                "username": user.username,
+                "role": getattr(user, "role", None),
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                },
+                "profile_picture_url": None
+            })
+        try:
+            profile = EmployeeProfile.objects.get(user=user)
+            if request.method == "POST":
+                # Handle profile picture upload
+                profile_picture = request.FILES.get("profile_picture")
+                if not profile_picture:
+                    return Response({"detail": "No profile_picture file provided."}, status=status.HTTP_400_BAD_REQUEST)
+                profile.profile_picture = profile_picture
+                profile.save()
+                return Response({
+                    "detail": "Profile picture updated successfully.",
+                    "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+                }, status=status.HTTP_200_OK)
+            # GET: Return profile info
+            return Response({
+                "id": profile.id,
+                "username": user.username,
+                "role": getattr(user, "role", None),
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                },
+                "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+            })
+        except EmployeeProfile.DoesNotExist:
+            return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'], url_path='prompt_change')
     def get_must_change_password(self, request):
@@ -178,13 +228,13 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         user = request.user
         if not user or not user.is_authenticated:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        # Only allow employees to use this endpoint
+        if not hasattr(user, "role") or user.role != "employee":
+            return Response({"detail": "Not available for this user."}, status=status.HTTP_404_NOT_FOUND)
         try:
-            # Try to get EmployeeProfile for both employee and admin
-            profile = EmployeeProfile.objects.filter(user=user).first()
+            profile = EmployeeProfile.objects.get(user=user)
             if request.method == "POST":
-                # Only allow profile picture upload for users with a profile
-                if not profile:
-                    return Response({"detail": "No profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
+                # Handle profile picture upload
                 profile_picture = request.FILES.get("profile_picture")
                 if not profile_picture:
                     return Response({"detail": "No profile_picture file provided."}, status=status.HTTP_400_BAD_REQUEST)
@@ -194,9 +244,9 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "detail": "Profile picture updated successfully.",
                     "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
                 }, status=status.HTTP_200_OK)
-            # GET: Return profile info if exists, else just user info
-            result = {
-                "id": profile.id if profile else None,
+            # GET: Return profile info
+            return Response({
+                "id": profile.id,  # employee profile primary key
                 "username": user.username,
                 "role": getattr(user, "role", None),
                 "user": {
@@ -204,11 +254,10 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "username": user.username,
                     "email": user.email,
                 },
-                "profile_picture_url": profile.profile_picture.url if profile and profile.profile_picture else None
-            }
-            return Response(result)
-        except Exception:
-            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+                "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+            })
+        except EmployeeProfile.DoesNotExist:
+            return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'], url_path='dashboard')
     def dashboard(self, request):
@@ -628,3 +677,19 @@ class AdminAccessLogsAPIView(APIView):
                 "status": l.status,
             })
         return Response(data)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_me(request):
+    """
+    Returns the basic user info for the currently authenticated user (admin or employee).
+    """
+    user = request.user
+    return Response({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": getattr(user, "role", None),
+    })

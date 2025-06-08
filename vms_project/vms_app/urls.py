@@ -5,6 +5,7 @@ from .views import (
     CustomTokenObtainPairView, MessageViewSet,
     AdminOverviewAPIView, AdminUsersAPIView, AdminEmployeesAPIView, AdminDevicesAPIView,
     AdminGuestsAPIView, AdminMessagesAPIView, AdminAccessLogsAPIView,
+    user_me,
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
 
@@ -29,6 +30,9 @@ urlpatterns = [
     path('admin/guests/', AdminGuestsAPIView.as_view(), name='admin-guests'),
     path('admin/messages/', AdminMessagesAPIView.as_view(), name='admin-messages'),
     path('admin/access-logs/', AdminAccessLogsAPIView.as_view(), name='admin-access-logs'),
+
+    # User API endpoint (add 'api/' prefix to match frontend requests)
+    path('users/me/', user_me, name='user-me'),
 
     # DRF router endpoints
     path('', include(router.urls)),
