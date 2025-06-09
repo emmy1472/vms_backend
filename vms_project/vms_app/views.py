@@ -698,3 +698,48 @@ def user_me(request):
         "email": user.email,
         "role": getattr(user, "role", None),
     })
+
+class SecurityDeviceViewSet(viewsets.ModelViewSet):
+    serializer_class = DeviceSerializer
+    permission_classes = [IsAuthenticated, IsSecurity]
+
+    def get_queryset(self):
+        return Device.objects.all()
+
+    def perform_create(self, serializer):
+        # Security can register devices for employees or guests
+        serial = serializer.validated_data['serial_number']
+        img = qrcode.make(serial)
+        buffer = BytesIO()
+        img.save(buffer)
+        qr_image = ContentFile(buffer.getvalue(), f'{serial}.png')
+        serializer.save(qr_code=qr_image)
+
+    @action(detail=False, methods=['post'], url_path='scan-qr')
+    def scan_qr(self, request):
+        serial_number = request.data.get('serial_number')
+        if not serial_number:
+            return Response({"detail": "serial_number is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            device = Device.objects.get(serial_number=serial_number)
+            return Response(device.get_full_info())
+        except Device.DoesNotExist:
+            return Response({"detail": "Device not found."}, status=status.HTTP_404_NOT_FOUND)
+
+class SecurityAccessLogViewSet(viewsets.ModelViewSet):
+    serializer_class = AccessLogSerializer
+    permission_classes = [IsAuthenticated, IsSecurity]
+
+    def get_queryset(self):
+        return AccessLog.objects.all().order_by('-time_in')
+
+    @action(detail=False, methods=['post'], url_path='scan-qr')
+    def scan_qr(self, request):
+        token = request.data.get('token')
+        if not token:
+            return Response({"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            guest = Guest.objects.get(token=token)
+            return Response(guest.get_full_info())
+        except Guest.DoesNotExist:
+            return Response({"detail": "Guest not found."}, status=status.HTTP_404_NOT_FOUND)

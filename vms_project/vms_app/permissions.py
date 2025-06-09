@@ -12,7 +12,7 @@ class IsEmployee(BasePermission):
 
 class IsSecurity(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'security'
+        return request.user.is_authenticated and getattr(request.user, "role", None) == "security"
 
 
 class IsOwnerOrAdmin(BasePermission):

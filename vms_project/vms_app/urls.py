@@ -8,6 +8,7 @@ from .views import (
     user_me,
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
+from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet
 
 router = DefaultRouter()
 router.register(r'employees', EmployeeViewSet, basename='employee')
@@ -16,6 +17,8 @@ router.register(r'devices', DeviceViewSet, basename='device')
 router.register(r'guests', GuestViewSet, basename='guest')
 router.register(r'messages', MessageViewSet, basename='message')
 router.register(r'access-logs', AccessLogViewSet, basename='accesslog')
+router.register(r'security/devices', SecurityDeviceViewSet, basename='security-devices')
+router.register(r'security/access-logs', SecurityAccessLogViewSet, basename='security-access-logs')
 
 urlpatterns = [
     # JWT Auth
