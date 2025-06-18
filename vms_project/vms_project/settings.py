@@ -36,6 +36,7 @@ BASE_HOSTS = [
     "localhost:5173",
     "localhost:5174",
     "73b6-102-89-32-65.ngrok-free.app",
+    "vms-1-ww78.onrender.com",
     "your-production-domain.com",  # Add your production domain here
     # Add more as needed
 ]
@@ -48,7 +49,7 @@ if NGROK_DOMAIN:
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = BASE_HOSTS
 
-APP_LOGO_URL = "https://73b6-102-89-32-65.ngrok-free.app/static/logo.png"
+APP_LOGO_URL = "https://vms-1-ww78.onrender.com"
 
 # CORS_ALLOWED_ORIGINS
 CORS_ALLOWED_ORIGINS = [
@@ -153,7 +154,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5174",
     "http://127.0.0.1:5173",
     "https://localhost:8000",
-    "https://73b6-102-89-32-65.ngrok-free.app"
+    "https://73b6-102-89-32-65.ngrok-free.app",
+    "https://vms-1-ww78.onrender.com"
 ]
 CORS_ALLOW_ALL_ORIGINS = False
 
@@ -162,7 +164,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "https://localhost:8000",
-    "https://73b6-102-89-32-65.ngrok-free.app"
+    "https://73b6-102-89-32-65.ngrok-free.app",
+    "https://vms-1-ww78.onrender.com"
 ]
 
 SESSION_COOKIE_SAMESITE = "Lax"
