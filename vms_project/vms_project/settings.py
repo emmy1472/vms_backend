@@ -119,14 +119,15 @@ SIMPLE_JWT = {
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'vms_db',           # Change to your MySQL database name
-        'USER': 'root',             # Change to your MySQL username
-        'PASSWORD': '',             # Change to your MySQL password (default is empty for WAMP)
-        'HOST': '127.0.0.1',        # Or 'localhost'
-        'PORT': '3306',             # Default MySQL port
+        'NAME': os.getenv("MYSQL_ADDON_DB"),
+        'USER': os.getenv("MYSQL_ADDON_USER"),
+        'PASSWORD': os.getenv("MYSQL_ADDON_PASSWORD"),
+        'HOST': os.getenv("MYSQL_ADDON_HOST"),
+        'PORT': os.getenv("MYSQL_ADDON_PORT", "3306"),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
