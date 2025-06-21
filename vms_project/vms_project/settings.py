@@ -122,15 +122,8 @@ SIMPLE_JWT = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv("MYSQL_ADDON_DB"),
-        'USER': os.getenv("MYSQL_ADDON_USER"),
-        'PASSWORD': os.getenv("MYSQL_ADDON_PASSWORD"),
-        'HOST': os.getenv("MYSQL_ADDON_HOST"),
-        'PORT': os.getenv("MYSQL_ADDON_PORT", "3306"),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
