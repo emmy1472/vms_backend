@@ -8,7 +8,7 @@ from .views import (
     user_me,
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
-from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet
+from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet, SecurityDashboardAPIView, SecurityScanAPIView
 
 router = DefaultRouter()
 router.register(r'employees', EmployeeViewSet, basename='employee')
@@ -39,6 +39,12 @@ urlpatterns = [
 
     # DRF router endpoints
     path('', include(router.urls)),
+
+    # Security dashboard endpoint
+    path('security/dashboard/', SecurityDashboardAPIView.as_view(), name='security-dashboard'),
+
+    # Security scan endpoint
+    path('security/scan/', SecurityScanAPIView.as_view(), name='security-scan'),
 ]
 
 # No changes needed. The @action methods you added to your ViewSets are automatically routed by DRF's DefaultRouter.

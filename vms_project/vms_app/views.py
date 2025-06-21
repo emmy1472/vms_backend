@@ -12,6 +12,7 @@ import qrcode
 from io import BytesIO
 from django.core.files.base import ContentFile
 from rest_framework.decorators import action, api_view, permission_classes # type: ignore
+from rest_framework.views import APIView # type: ignore
 from datetime import timedelta, datetime, timezone
 from rest_framework.exceptions import PermissionDenied # type: ignore
 from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore
@@ -745,3 +746,97 @@ class SecurityAccessLogViewSet(viewsets.ModelViewSet):
             return Response(guest.get_full_info())
         except Guest.DoesNotExist:
             return Response({"detail": "Guest not found."}, status=status.HTTP_404_NOT_FOUND)
+
+class SecurityDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSecurity]
+
+    def get(self, request):
+        """
+        Returns dashboard metrics for security users: device counts, guest counts, verified devices, expected guests, etc.
+        """
+        device_count = Device.objects.count()
+        verified_device_count = Device.objects.filter(is_verified=True).count()
+        guest_count = Guest.objects.count()
+        guests_today = Guest.objects.filter(visit_date=datetime.now().date()).count()
+        expected_guests_today = Guest.objects.filter(visit_date=datetime.now().date(), token_expiry__gte=datetime.now()).count()
+        access_logs_today = AccessLog.objects.filter(time_in__date=datetime.now().date()).count()
+        return Response({
+            "device_count": device_count,
+            "verified_device_count": verified_device_count,
+            "guest_count": guest_count,
+            "guests_today": guests_today,
+            "expected_guests_today": expected_guests_today,
+            "access_logs_today": access_logs_today,
+        })
+
+class SecurityScanAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSecurity]
+
+    def post(self, request):
+        """
+        Accepts a QR/token and returns the type (employee, guest, device) and info.
+        If both person and device are provided, logs attendance (in/out).
+        """
+        qr_value = request.data.get("qr_value")
+        device_serial = request.data.get("device_serial")
+        action = request.data.get("action")  # 'in' or 'out'
+        if not qr_value:
+            return Response({"detail": "qr_value is required."}, status=400)
+
+        # Try to match employee by staff_id
+        try:
+            profile = EmployeeProfile.objects.get(staff_id=qr_value)
+            person_type = 'employee'
+            person_id = profile.id
+            person_info = profile.get_full_info()
+        except EmployeeProfile.DoesNotExist:
+            profile = None
+            # Try guest by token
+            try:
+                guest = Guest.objects.get(token=qr_value)
+                person_type = 'guest'
+                person_id = guest.id
+                person_info = guest.get_full_info()
+            except Guest.DoesNotExist:
+                guest = None
+                # Try device by serial_number
+                try:
+                    device = Device.objects.get(serial_number=qr_value)
+                    return Response({
+                        "type": "device",
+                        "device": device.get_full_info()
+                    })
+                except Device.DoesNotExist:
+                    return Response({"detail": "Not found."}, status=404)
+
+        # If only person scanned, return info and expect device next
+        if not device_serial:
+            return Response({
+                "type": person_type,
+                "person": person_info
+            })
+
+        # If both person and device, log attendance
+        try:
+            device = Device.objects.get(serial_number=device_serial)
+        except Device.DoesNotExist:
+            return Response({"detail": "Device not found."}, status=404)
+
+        # Log attendance
+        from django.contrib.contenttypes.models import ContentType
+        content_type = ContentType.objects.get_for_model(profile or guest)
+        log = AccessLog.objects.create(
+            person_type=person_type,
+            person_id=person_id,
+            content_type=content_type,
+            device_serial=device.serial_number,
+            scanned_by=request.user,
+            status=action or 'in',
+        )
+        return Response({
+            "type": person_type,
+            "person": person_info,
+            "device": device.get_full_info(),
+            "log": "Attendance logged.",
+            "status": action or 'in',
+        })
