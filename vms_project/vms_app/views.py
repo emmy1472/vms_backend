@@ -30,8 +30,6 @@ from django.utils.crypto import get_random_string
 from rest_framework.decorators import api_view, permission_classes # type: ignore
 from rest_framework.permissions import IsAuthenticated # type: ignore
 from django.db import transaction
-from django.utils import timezone
-from django.db.models import Count
 
 
 
@@ -266,7 +264,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
     def dashboard(self, request):
         """
         Returns detailed info for the logged-in employee, including device count,
-        guest count, attendance (in/out) count, verified devices, and expected guests for today.
+        guest count, and attendance (in/out) count.
         """
         try:
             profile = EmployeeProfile.objects.get(user=request.user)
@@ -276,13 +274,9 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         # Devices
         devices = Device.objects.filter(owner_employee=profile)
         device_count = devices.count()
-        verified_device_count = devices.filter(is_verified=True).count()
 
         # Guests invited
-        from django.utils import timezone
-        today = timezone.now().date()
-        guests_today = Guest.objects.filter(invited_by=profile, visit_date=today)
-        expected_guests_today = guests_today.exclude(id__in=[g.id for g in guests_today if g.is_token_expired()]).count()
+        guest_count = Guest.objects.filter(invited_by=profile).count()
 
         # Attendance logs (in/out)
         from django.contrib.contenttypes.models import ContentType
@@ -297,11 +291,9 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         data = profile.get_full_info()
         data["device_count"] = device_count
         data["devices"] = [device.get_full_info() for device in devices]
-        data["guest_count"] = Guest.objects.filter(invited_by=profile).count()
+        data["guest_count"] = guest_count
         data["attendance_in"] = attendance_in
         data["attendance_out"] = attendance_out
-        data["verified_device_count"] = verified_device_count
-        data["expected_guests_today"] = expected_guests_today
 
         return Response(data)
 
@@ -753,86 +745,3 @@ class SecurityAccessLogViewSet(viewsets.ModelViewSet):
             return Response(guest.get_full_info())
         except Guest.DoesNotExist:
             return Response({"detail": "Guest not found."}, status=status.HTTP_404_NOT_FOUND)
-
-class IsSecurityUser(BasePermission):
-    def has_permission(self, request, view):
-        return hasattr(request.user, 'role') and request.user.role == 'security'
-
-class SecurityDashboardView(APIView):
-    permission_classes = [IsAuthenticated, IsSecurityUser]
-    def get(self, request):
-        today = timezone.localdate()
-        guests_today = Guest.objects.filter(visit_date=today).count()
-        devices = Device.objects.count()
-        logs_today = AccessLog.objects.filter(time_in__date=today).count()
-        verified_guests_today = Guest.objects.filter(visit_date=today, is_verified=True).count()
-        return Response({
-            'guests_today': guests_today,
-            'devices': devices,
-            'logs_today': logs_today,
-            'verified_guests_today': verified_guests_today,
-        })
-
-class SecurityGuestsView(APIView):
-    permission_classes = [IsAuthenticated, IsSecurityUser]
-    def get(self, request):
-        date = request.query_params.get('date')
-        if not date:
-            date = timezone.localdate()
-        guests = Guest.objects.filter(visit_date=date)
-        return Response([{
-            'id': g.id,
-            'full_name': g.full_name,
-            'phone': g.phone,
-            'purpose': g.purpose,
-            'visit_date': g.visit_date,
-            'is_verified': g.is_verified,
-        } for g in guests])
-
-class SecurityScanQRView(APIView):
-    permission_classes = [IsAuthenticated, IsSecurityUser]
-    def post(self, request):
-        token = request.data.get('token')
-        if not token:
-            return Response({'detail': 'Token required.'}, status=400)
-        # Try guest
-        guest = Guest.objects.filter(token=token).first()
-        if guest:
-            return Response({'type': 'guest', **guest.get_full_info()})
-        # Try employee by QR (assume staff_id or similar)
-        emp = EmployeeProfile.objects.filter(id_qr_code__isnull=False).filter(staff_id=token).first()
-        if emp:
-            return Response({'type': 'employee', **emp.get_full_info()})
-        # Try device
-        device = Device.objects.filter(qr_code=token).first()
-        if device:
-            return Response({'type': 'device', 'device_name': device.device_name, 'serial_number': device.serial_number})
-        return Response({'detail': 'Not found.'}, status=404)
-
-class SecurityDeviceView(APIView):
-    permission_classes = [IsAuthenticated, IsSecurityUser]
-    def get(self, request):
-        devices = Device.objects.all()
-        return Response([{
-            'id': d.id,
-            'device_name': d.device_name,
-            'serial_number': d.serial_number,
-            'owner': str(d.owner_employee) if d.owner_employee else None,
-        } for d in devices])
-    def post(self, request):
-        # Register a new device for guest or employee
-        data = request.data
-        device_name = data.get('device_name')
-        serial_number = data.get('serial_number')
-        owner_id = data.get('owner_id')
-        owner_type = data.get('owner_type')  # 'guest' or 'employee'
-        if not device_name or not serial_number or not owner_id or not owner_type:
-            return Response({'detail': 'All fields required.'}, status=400)
-        if owner_type == 'guest':
-            owner = Guest.objects.filter(id=owner_id).first()
-        else:
-            owner = EmployeeProfile.objects.filter(id=owner_id).first()
-        if not owner:
-            return Response({'detail': 'Owner not found.'}, status=404)
-        device = Device.objects.create(device_name=device_name, serial_number=serial_number, owner_employee=owner if owner_type=='employee' else None, owner_guest=owner if owner_type=='guest' else None)
-        return Response({'detail': 'Device registered.', 'id': device.id})
