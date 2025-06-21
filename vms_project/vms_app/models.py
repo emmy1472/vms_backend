@@ -7,6 +7,7 @@ from io import BytesIO
 from django.core.files import File
 from PIL import Image  # type: ignore
 from .generate import generate_short_token
+from django.utils import timezone
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -130,6 +131,7 @@ class Guest(models.Model):
         default=generate_short_token
     )
     token_qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
+    token_expiry = models.DateTimeField(default=timezone.now)
     is_verified = models.BooleanField(default=False)
     visit_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
