@@ -49,7 +49,7 @@ class RegisterEmployeeSerializer(serializers.ModelSerializer):
 
 
 class EmployeeProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     profile_picture = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
