@@ -31,6 +31,7 @@ from django.utils.crypto import get_random_string
 from rest_framework.decorators import api_view, permission_classes # type: ignore
 from rest_framework.permissions import IsAuthenticated # type: ignore
 from django.db import transaction
+from utils.sms import send_sms
 
 
 
@@ -520,6 +521,15 @@ class GuestViewSet(viewsets.ModelViewSet):
                 # Inline display via Content-ID is not reliable across all clients, so attachment is preferred
 
                 email.send(fail_silently=False)
+
+
+                # ✅ Send SMS with token if phone number is available
+                if guest.phone:
+                    try:
+                        sms_message = f"Hello {guest.full_name}, you're invited to NETCO. Your access token is: {guest.token}"
+                        send_sms(guest.phone, sms_message)
+                    except Exception as e:
+                        print(f"Failed to send SMS: {e}")
 
     def get_queryset(self):
         user = self.request.user
