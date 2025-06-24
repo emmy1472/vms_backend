@@ -64,7 +64,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 {
                     'username': user.username,
                     'app_name': 'NETCO Visitor Management System',
-                    'logo_url': 'https://a3a5-102-88-111-89.ngrok-free.app/static/logo.png',  # <-- Set to your public/static logo URL
+                    'logo_url': 'https://vms-backend-b84r.onrender.com/static/logo.png',  # <-- Set to your public/static logo URL
                     'default_password': 'Welcome$',
                 }
             )
