@@ -27,10 +27,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-BREVO_API_KEY = os.getenv('BREVO_API_KEY')
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # Define your base hosts/origins in one place
 BASE_HOSTS = [
@@ -40,16 +40,13 @@ BASE_HOSTS = [
     "127.0.0.1:5173",
     "localhost:5173",
     "localhost:5174",
-    "73b6-102-89-32-65.ngrok-free.app",
+    
     "vms-backend-b84r.onrender.com",
     "your-production-domain.com",  # Add your production domain here
     # Add more as needed
 ]
 
-# For ngrok or dynamic domains, you can append them at runtime if needed
-NGROK_DOMAIN = os.environ.get("NGROK_DOMAIN")
-if NGROK_DOMAIN:
-    BASE_HOSTS.append(NGROK_DOMAIN)
+
 
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = BASE_HOSTS
@@ -133,9 +130,9 @@ DATABASES = {
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp-relay.brevo.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.sendgrid.net'
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
@@ -238,3 +235,4 @@ TEMPLATES = [
 ]
 
 ROOT_URLCONF = 'vms_project.urls'
+WSGI_APPLICATION = 'vms_project.wsgi.application'

@@ -1,18 +1,15 @@
-# utils/sms.py
-import requests # type: ignore
+from twilio.rest import Client
 from django.conf import settings
 
-def send_sms(recipient, message, sender="NETCO"):
-    url = "https://api.brevo.com/v3/transactionalSMS/sms"
-    headers = {
-        "accept": "application/json",
-        "api-key": settings.BREVO_API_KEY,
-        "content-type": "application/json"
-    }
-    payload = {
-        "sender": sender,
-        "recipient": recipient,
-        "content": message
-    }
-    response = requests.post(url, json=payload, headers=headers)
-    return response.json()
+def send_sms(to, message):
+    client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    try:
+        message = client.messages.create(
+            body=message,
+            from_=settings.TWILIO_PHONE_NUMBER,
+            to=to
+        )
+        return message.sid
+    except Exception as e:
+        print("SMS sending failed:", e)
+        return None
