@@ -32,6 +32,9 @@ from rest_framework.decorators import api_view, permission_classes # type: ignor
 from rest_framework.permissions import IsAuthenticated # type: ignore
 from django.db import transaction
 from utils.sms import send_sms
+from rest_framework import generics # type: ignore
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 
 
@@ -42,22 +45,17 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 User = get_user_model()
 
-
-class EmployeeViewSet(viewsets.ModelViewSet):
-    """
-    Admin manages Employees: create/list/update/delete
-    """
-    queryset = User.objects.filter(role='employee')
+class CreateEmployeeUserView(generics.CreateAPIView):
+    queryset = User.objects.all()
     serializer_class = RegisterEmployeeSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated]  # You can add IsAdmin if only admins can create
 
     def perform_create(self, serializer):
         # Set default password "Welcome$" for new users
         user = serializer.save(password="Welcome$")
 
         try:
-            from django.template.loader import render_to_string
-            from django.utils.html import strip_tags
+            
 
             # Use your HTML template for the welcome email
             html_message = render_to_string(
@@ -97,6 +95,17 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return User.objects.filter(role='employee')
+
+
+class EmployeeViewSet(viewsets.ModelViewSet):
+    """
+    Admin manages Employees: create/list/update/delete
+    """
+    queryset = User.objects.filter(role='employee')
+    serializer_class = RegisterEmployeeSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    
 
 
 class EmployeeProfileViewSet(viewsets.ModelViewSet):
@@ -617,6 +626,7 @@ class AdminUsersAPIView(APIView):
         User = get_user_model()
         users = User.objects.all().values("id", "username", "email", "role", "is_active")
         return Response(list(users))
+    
 
 class AdminEmployeesAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]

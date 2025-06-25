@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter # type: ignore
 from .views import (
-    EmployeeViewSet, EmployeeProfileViewSet, DeviceViewSet, GuestViewSet, AccessLogViewSet,
+    EmployeeViewSet, CreateEmployeeUserView, EmployeeProfileViewSet, DeviceViewSet, GuestViewSet, AccessLogViewSet,
     CustomTokenObtainPairView, MessageViewSet,
     AdminOverviewAPIView, AdminUsersAPIView, AdminEmployeesAPIView, AdminDevicesAPIView,
     AdminGuestsAPIView, AdminMessagesAPIView, AdminAccessLogsAPIView,
@@ -24,8 +24,10 @@ urlpatterns = [
     # JWT Auth
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # login
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # token refresh
+    path('users/', CreateEmployeeUserView.as_view(), name='create-user'),
 
     # Admin API endpoints
+
     path('admin/overview/', AdminOverviewAPIView.as_view(), name='admin-overview'),
     path('admin/users/', AdminUsersAPIView.as_view(), name='admin-users'),
     path('admin/employees/', AdminEmployeesAPIView.as_view(), name='admin-employees'),
