@@ -1,4 +1,4 @@
-from twilio.rest import Client
+from twilio.rest import Client # type: ignore
 from django.conf import settings
 
 def send_sms(to, message):
