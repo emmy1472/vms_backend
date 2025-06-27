@@ -4,12 +4,16 @@ from .models import EmployeeProfile, Device, Guest, AccessLog, Message
 # serializers.py
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer # type: ignore
 
+
+
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
 
-        # Add custom claim (optional)
+        # Custom JWT claims (for internal/backend use)
         token['username'] = user.username
         token['role'] = user.role
         token['must_change_password'] = user.must_change_password
@@ -19,10 +23,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        # Add extra field to response
-        data['must_change_password'] = self.user.must_change_password
-        data['reset_otp'] = getattr(self.user, 'reset_otp', None)
+        # Return useful fields to frontend
+        data['user'] = {
+            'id': self.user.id,
+            'username': self.user.username,
+            'email': self.user.email,
+            'role': self.user.role,
+            'must_change_password': self.user.must_change_password,
+            'reset_otp': getattr(self.user, 'reset_otp', None),
+        }
+
         return data
+
 
 
 User = get_user_model()

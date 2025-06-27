@@ -39,6 +39,7 @@ from django.utils.html import strip_tags
 
 
 
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
