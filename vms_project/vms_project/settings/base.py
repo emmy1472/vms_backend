@@ -107,7 +107,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         # 'rest_framework.authentication.SessionAuthentication',  # Uncomment if you want session auth
     ),
+
+    'DEFAULT_SCHEMA_CLASS': ('drf_spectacular.openapi.AutoSchema',),
 }
+
 
 # Add or update your SimpleJWT settings for token lifetime
 SIMPLE_JWT = {
@@ -199,6 +202,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 
+STATIC_URL = '/static/'
+
+# Absolute path to where collected static files will go (e.g. for deployment)
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # for development-time static files
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

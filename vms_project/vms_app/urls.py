@@ -9,6 +9,9 @@ from .views import (
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
 from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet, SecurityDashboardAPIView, SecurityScanAPIView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView # type: ignore
+
+
 
 router = DefaultRouter()
 router.register(r'employees', EmployeeViewSet, basename='employee')
@@ -49,8 +52,15 @@ urlpatterns = [
     path('security/scan/', SecurityScanAPIView.as_view(), name='security-scan'),
 ]
 
+
 # No changes needed. The @action methods you added to your ViewSets are automatically routed by DRF's DefaultRouter.
 # You can access them at:
 #   /employee-profiles/scan-qr/
 #   /devices/scan-qr/
 #   /guests/scan-qr/
+
+urlpatterns += [
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+]
