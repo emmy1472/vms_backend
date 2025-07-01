@@ -1,40 +1,36 @@
-from rest_framework import viewsets, status # type: ignore
+from datetime import datetime
+from smtplib import SMTPException
+from rest_framework import viewsets, status, generics # type: ignore
 from rest_framework.response import Response # type: ignore
-from rest_framework.permissions import IsAuthenticated, AllowAny # type: ignore
+from rest_framework.decorators import api_view, permission_classes, action # type: ignore
+from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission # type: ignore
+from rest_framework.views import APIView # type: ignore
+from rest_framework.exceptions import PermissionDenied # type: ignore
+from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore
+from django.core.files.base import ContentFile
+
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.core.mail import send_mail, BadHeaderError, EmailMessage
+from django.http import Http404, FileResponse
+from django.conf import settings
+from django.utils.crypto import get_random_string
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.db import transaction
+
 from .serializers import (
     RegisterEmployeeSerializer, EmployeeProfileSerializer, DeviceSerializer,
-    GuestSerializer, AccessLogSerializer, MessageSerializer
+    GuestSerializer, AccessLogSerializer, MessageSerializer, CustomTokenObtainPairSerializer
 )
 from .models import EmployeeProfile, Device, Guest, AccessLog, Message
 from .permissions import IsAdmin, IsEmployee, IsSecurity
+from utils.sms import send_sms
+
 import qrcode
 from io import BytesIO
-from django.core.files.base import ContentFile
-from rest_framework.decorators import action, api_view, permission_classes # type: ignore
-from rest_framework.views import APIView # type: ignore
-from datetime import timedelta, datetime, timezone
-from rest_framework.exceptions import PermissionDenied # type: ignore
-from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore
-from .serializers import CustomTokenObtainPairSerializer
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
-from django.conf import settings
-from django.core.mail import EmailMessage
-from django.core.mail import send_mail, BadHeaderError
-from smtplib import SMTPException
-from rest_framework.views import APIView # type: ignore
-from rest_framework.permissions import BasePermission # type: ignore
-from django.http import Http404, FileResponse
-from django.utils.crypto import get_random_string
-from rest_framework.decorators import api_view, permission_classes # type: ignore
-from rest_framework.permissions import IsAuthenticated # type: ignore
-from django.db import transaction
-from utils.sms import send_sms
-from rest_framework import generics # type: ignore
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
+
 
 
 

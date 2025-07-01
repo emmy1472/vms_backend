@@ -107,8 +107,12 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         # 'rest_framework.authentication.SessionAuthentication',  # Uncomment if you want session auth
     ),
-
-    'DEFAULT_SCHEMA_CLASS': ('drf_spectacular.openapi.AutoSchema',),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',  # Default to authenticated users
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,  # Default page size for pagination    
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # Use drf-spectacular for OpenAPI schema generation
 }
 
 
