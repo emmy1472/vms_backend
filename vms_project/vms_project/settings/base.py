@@ -215,6 +215,9 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",  # for development-time static files
 ]
 
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
