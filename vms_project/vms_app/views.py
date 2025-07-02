@@ -1,4 +1,6 @@
+from asyncio.log import logger
 from datetime import datetime
+import logging
 from smtplib import SMTPException
 from rest_framework import viewsets, status, generics # type: ignore
 from rest_framework.response import Response # type: ignore
@@ -32,8 +34,7 @@ import qrcode
 from io import BytesIO
 
 
-
-
+logger = logging.getLogger(__name__)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -369,21 +370,38 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         email = request.data.get('email')
         if not email:
             return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            # Use case-insensitive search for email
+        # Case-insensitive search
             user = get_user_model().objects.filter(email__iexact=email).first()
             if not user:
                 return Response({"detail": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Generate and save OTP
             otp = get_random_string(length=6, allowed_chars='0123456789')
             user.reset_otp = otp
             user.save()
-            # Send OTP to email
+
+            # Compose and send email
             subject = "Password Reset OTP"
             message = f"Your OTP for password reset is: {otp}"
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
-            return Response({"detail": "OTP sent to your email."}, status=status.HTTP_200_OK)
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+
+            if not from_email:
+                logger.error("DEFAULT_FROM_EMAIL is not set in settings.")
+                return Response({"detail": "Server email configuration error."}, status=500)
+
+            try:
+                send_mail(subject, message, from_email, [email])
+            except (BadHeaderError, SMTPException, Exception) as email_error:
+                logger.error(f"Failed to send password reset email to {email}: {email_error}")
+                return Response({"detail": "Failed to send email. Try again later."}, status=500)
+
+            return Response({"detail": "OTP sent to your email."}, status=200)
+
         except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Unexpected forgot password error: {e}", exc_info=True)
+            return Response({"detail": "Internal server error."}, status=500)
 
     @action(detail=False, methods=['post'], url_path='verify_otp', permission_classes=[AllowAny])
     def verify_otp(self, request):
