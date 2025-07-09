@@ -4,11 +4,11 @@ from .views import (
     EmployeeViewSet, CreateEmployeeUserView, EmployeeProfileViewSet, DeviceViewSet, GuestViewSet, AccessLogViewSet,
     CustomTokenObtainPairView, MessageViewSet,
     AdminOverviewAPIView, AdminUsersAPIView, AdminEmployeesAPIView, AdminDevicesAPIView,
-    AdminGuestsAPIView, AdminMessagesAPIView, AdminAccessLogsAPIView,
+    AdminGuestsAPIView, AdminMessagesAPIView, AdminAccessLogsAPIView,  
     user_me,
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
-from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet, SecurityDashboardAPIView, SecurityScanAPIView
+from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet, SecurityDashboardAPIView, SecurityEmployeesAPIView, SecurityGuestsAPIView, SecurityScanAPIView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView # type: ignore
 from django.conf import settings
 from django.conf.urls.static import static
@@ -52,6 +52,9 @@ urlpatterns = [
 
     # Security dashboard endpoint
     path('security/dashboard/', SecurityDashboardAPIView.as_view(), name='security-dashboard'),
+    path('security/employees/', SecurityEmployeesAPIView.as_view(), name='security-employees'),
+    path('security/guests/', SecurityGuestsAPIView.as_view(), name='security-guests'),
+    path('security/access-logs/', SecurityAccessLogViewSet.as_view({'get': 'list'}), name='security-access-logs'),
 
     # Security scan endpoint
     path('security/scan/', SecurityScanAPIView.as_view(), name='security-scan'),

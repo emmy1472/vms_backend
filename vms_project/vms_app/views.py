@@ -744,6 +744,20 @@ class SecurityDeviceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Device.objects.all()
 
+    def get(self, request):
+        devices = Device.objects.all()
+        data = []
+        for d in devices:
+            data.append({
+                "id": d.id,
+                "device_name": d.device_name,
+                "serial_number": d.serial_number,
+                "owner_employee_name": getattr(d.owner_employee, "full_name", None) if d.owner_employee else None,
+                "owner_guest_name": getattr(d.owner_guest, "full_name", None) if d.owner_guest else None,
+                "is_verified": d.is_verified,
+            })
+        return Response(data)
+
     def perform_create(self, serializer):
         # Security can register devices for employees or guests
         serial = serializer.validated_data['serial_number']
@@ -763,6 +777,34 @@ class SecurityDeviceViewSet(viewsets.ModelViewSet):
             return Response(device.get_full_info())
         except Device.DoesNotExist:
             return Response({"detail": "Device not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class SecurityEmployeesAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSecurity]
+
+    def get(self, request):
+        employees = EmployeeProfile.objects.all().values(
+            "id", "full_name", "department", "position", "staff_id"
+        )
+        return Response(list(employees))
+
+class SecurityGuestsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSecurity]
+
+    def get(self, request):
+        guests = Guest.objects.all()
+        data = []
+        for g in guests:
+            data.append({
+                "id": g.id,
+                "full_name": g.full_name,
+                "phone": g.phone,
+                "purpose": g.purpose,
+                "invited_by_name": getattr(g.invited_by, "full_name", None) if g.invited_by else None,
+                "visit_date": g.visit_date,
+                "is_verified": g.is_verified,
+            })
+        return Response(data)
 
 class SecurityAccessLogViewSet(viewsets.ModelViewSet):
     serializer_class = AccessLogSerializer
@@ -875,3 +917,7 @@ class SecurityScanAPIView(APIView):
             "log": "Attendance logged.",
             "status": action or 'in',
         })
+
+
+
+    
