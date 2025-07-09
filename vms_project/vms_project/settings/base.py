@@ -27,24 +27,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-
+BASE_HOSTS = os.getenv('BASE_HOST')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
 # Define your base hosts/origins in one place
-BASE_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "localhost:8000",
-    "127.0.0.1:5173",
-    "localhost:5173",
-    "localhost:5174",
-    
-    "vms-backend-b84r.onrender.com",
-    "your-production-domain.com",  # Add your production domain here
-    # Add more as needed
-]
+
 
 
 
@@ -53,23 +42,6 @@ ALLOWED_HOSTS = BASE_HOSTS
 
 APP_LOGO_URL = "https://vms-backend-b84r.onrender.com"
 
-# CORS_ALLOWED_ORIGINS
-CORS_ALLOWED_ORIGINS = [
-    f"http://{host}" if not host.startswith("http") else host
-    for host in BASE_HOSTS
-] + [
-    f"https://{host}" if not host.startswith("http") else host
-    for host in BASE_HOSTS
-]
-
-# CSRF_TRUSTED_ORIGINS
-CSRF_TRUSTED_ORIGINS = [
-    f"http://{host}" if not host.startswith("http") else host
-    for host in BASE_HOSTS
-] + [
-    f"https://{host}" if not host.startswith("http") else host
-    for host in BASE_HOSTS
-]
 
 AUTH_USER_MODEL = 'vms_app.User'
 
@@ -159,24 +131,11 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Make sure these are set for CORS and CSRF:
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5173",
-    "https://localhost:8000",
-    "https://73b6-102-89-32-65.ngrok-free.app",
-    "https://vms-backend-b84r.onrender.com"
-]
+
 CORS_ALLOW_ALL_ORIGINS = False
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "https://localhost:8000",
-    "https://73b6-102-89-32-65.ngrok-free.app",
-    "https://vms-backend-b84r.onrender.com"
-]
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if os.getenv('CORS_ALLOWED_ORIGINS') else []
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if os.getenv('CSRF_TRUSTED_ORIGINS') else []
 
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = False  # False for local dev
