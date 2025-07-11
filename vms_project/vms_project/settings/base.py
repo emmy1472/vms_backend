@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv # type: ignore
+import dj_database_url # type: ignore
 
 load_dotenv()
 
@@ -96,7 +97,9 @@ SIMPLE_JWT = {
     # ...other SimpleJWT settings if needed...
 }
 
-
+DATABASES = {
+    'default': dj_database_url.config(default='postgresql://vms_kv38_user:y7nVHrF2A7J21GZjkgs1Hbm9sLeaSlcu@dpg-d1dpn5re5dus73dqsimg-a/vms_kv38')
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
