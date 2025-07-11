@@ -21,6 +21,7 @@ from django.utils.crypto import get_random_string
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.db import transaction
+from django.contrib.contenttypes.models import ContentType
 
 from .serializers import (
     RegisterEmployeeSerializer, EmployeeProfileSerializer, DeviceSerializer,
@@ -900,7 +901,7 @@ class SecurityScanAPIView(APIView):
             return Response({"detail": "Device not found."}, status=404)
 
         # Log attendance
-        from django.contrib.contenttypes.models import ContentType
+        
         content_type = ContentType.objects.get_for_model(profile or guest)
         log = AccessLog.objects.create(
             person_type=person_type,
