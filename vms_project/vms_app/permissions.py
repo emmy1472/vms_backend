@@ -21,3 +21,8 @@ class IsOwnerOrAdmin(BasePermission):
     """
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user or request.user.role == 'admin'
+
+
+class IsEmployeeOrSecurityOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.role in ["employee", "security", "admin"]

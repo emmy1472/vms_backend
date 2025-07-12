@@ -100,9 +100,8 @@ SIMPLE_JWT = {
 DJANGO_ENV = os.getenv('DJANGO_ENV', 'dev').lower()
 
 if DJANGO_ENV == 'prod':
-    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://vms_kv38_user:y7nVHrF2A7J21GZjkgs1Hbm9sLeaSlcu@dpg-d1dpn5re5dus73dqsimg-a/vms_kv38')
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL)
+        'default': dj_database_url.parse(os.getenv('DATABASE_URL'))
     }
 else:
     DATABASES = {

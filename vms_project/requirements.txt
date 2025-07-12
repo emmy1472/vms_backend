@@ -33,7 +33,7 @@ packaging==25.0
 pandas==2.2.3
 pillow==11.2.1
 propcache==0.3.2
-psycopg==3.2.9
+psycopg2-binary==2.9.10
 PyJWT==2.9.0
 PyMySQL==1.1.1
 python-dateutil==2.9.0.post0

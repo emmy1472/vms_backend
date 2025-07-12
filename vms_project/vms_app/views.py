@@ -5,7 +5,7 @@ from smtplib import SMTPException
 from rest_framework import viewsets, status, generics # type: ignore
 from rest_framework.response import Response # type: ignore
 from rest_framework.decorators import api_view, permission_classes, action # type: ignore
-from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission # type: ignore
+from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission, IsEmployeeOrSecurityOrAdmin # type: ignore
 from rest_framework.views import APIView # type: ignore
 from rest_framework.exceptions import PermissionDenied # type: ignore
 from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore
@@ -580,16 +580,22 @@ class GuestViewSet(viewsets.ModelViewSet):
 
 
 
-class AccessLogViewSet(viewsets.ModelViewSet):
-    """
-    Security logs access entries and exits.
-    """
+class AccessLogListAPIView(APIView):
     serializer_class = AccessLogSerializer
-    permission_classes = [IsAuthenticated, IsSecurity, IsAdmin]
+    permission_classes = [IsAuthenticated, IsEmployeeOrSecurityOrAdmin]
 
-    def get_queryset(self):
-        # For future: filter by user/date if needed for dashboards
-        return AccessLog.objects.all()
+    def get(self, request):
+        user = request.user
+
+        if user.role == "employee":
+            # Return only this employee's logs
+            logs = AccessLog.objects.filter(person_type="employee", person_id=user.employeeprofile.id)
+        else:
+            # Admin and security can see all logs
+            logs = AccessLog.objects.all()
+
+        serializer = AccessLogSerializer(logs, many=True)
+        return Response(serializer.data)
 
 
 
