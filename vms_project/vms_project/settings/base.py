@@ -39,7 +39,7 @@ DEBUG = False
 
 
 # ALLOWED_HOSTS
-ALLOWED_HOSTS = BASE_HOSTS
+ALLOWED_HOSTS = BASE_HOSTS.split(',') if BASE_HOSTS else []
 
 APP_LOGO_URL = "https://vms-backend-b84r.onrender.com"
 
@@ -97,9 +97,20 @@ SIMPLE_JWT = {
     # ...other SimpleJWT settings if needed...
 }
 
-DATABASES = {
-    'default': dj_database_url.config(default='postgresql://vms_kv38_user:y7nVHrF2A7J21GZjkgs1Hbm9sLeaSlcu@dpg-d1dpn5re5dus73dqsimg-a/vms_kv38')
-}
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'dev').lower()
+
+if DJANGO_ENV == 'prod':
+    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://vms_kv38_user:y7nVHrF2A7J21GZjkgs1Hbm9sLeaSlcu@dpg-d1dpn5re5dus73dqsimg-a/vms_kv38')
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
