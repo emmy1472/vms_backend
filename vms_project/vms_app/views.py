@@ -5,7 +5,7 @@ from smtplib import SMTPException
 from rest_framework import viewsets, status, generics # type: ignore
 from rest_framework.response import Response # type: ignore
 from rest_framework.decorators import api_view, permission_classes, action # type: ignore
-from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission, IsEmployeeOrSecurityOrAdmin # type: ignore
+from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission # type: ignore
 from rest_framework.views import APIView # type: ignore
 from rest_framework.exceptions import PermissionDenied # type: ignore
 from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore
@@ -28,7 +28,7 @@ from .serializers import (
     GuestSerializer, AccessLogSerializer, MessageSerializer, CustomTokenObtainPairSerializer
 )
 from .models import EmployeeProfile, Device, Guest, AccessLog, Message
-from .permissions import IsAdmin, IsEmployee, IsSecurity
+from .permissions import IsAdmin, IsEmployee, IsSecurity, IsEmployeeOrSecurityOrAdmin 
 from utils.sms import send_sms
 
 import qrcode
@@ -109,7 +109,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
 class EmployeeProfileViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsEmployee]
 
     def get_queryset(self):
         user = self.request.user
@@ -580,7 +580,7 @@ class GuestViewSet(viewsets.ModelViewSet):
 
 
 
-class AccessLogListAPIView(APIView):
+class AccessLogViewSet(viewsets.ModelViewSet):
     serializer_class = AccessLogSerializer
     permission_classes = [IsAuthenticated, IsEmployeeOrSecurityOrAdmin]
 
