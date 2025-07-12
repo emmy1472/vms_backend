@@ -581,6 +581,8 @@ class GuestViewSet(viewsets.ModelViewSet):
 
 
 class AccessLogViewSet(viewsets.ModelViewSet):
+
+    queryset = AccessLog.objects.all()
     serializer_class = AccessLogSerializer
     permission_classes = [IsAuthenticated, IsEmployeeOrSecurityOrAdmin]
 

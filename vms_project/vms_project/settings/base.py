@@ -150,6 +150,10 @@ SESSION_COOKIE_SECURE = False  # False for local dev
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = False     # False for local dev
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 60 * 60 * 24  # 1 day
+SESSION_SAVE_EVERY_REQUEST = False
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
