@@ -854,12 +854,20 @@ class SecurityScanAPIView(APIView):
         """
         Accepts a QR/token and returns the type (employee, guest, device) and info.
         If both person and device are provided, logs attendance (in/out).
+        If only person (employee/guest) is provided, logs attendance for that person.
         """
         qr_value = request.data.get("qr_value")
         device_serial = request.data.get("device_serial")
         action = request.data.get("action")  # 'in' or 'out'
         if not qr_value:
             return Response({"detail": "qr_value is required."}, status=400)
+
+        person_type = None
+        person_id = None
+        person_info = None
+        profile = None
+        guest = None
+        device = None
 
         # Try to match employee by staff_id
         try:
@@ -868,7 +876,6 @@ class SecurityScanAPIView(APIView):
             person_id = profile.id
             person_info = profile.get_full_info()
         except EmployeeProfile.DoesNotExist:
-            profile = None
             # Try guest by token
             try:
                 guest = Guest.objects.get(token=qr_value)
@@ -876,7 +883,6 @@ class SecurityScanAPIView(APIView):
                 person_id = guest.id
                 person_info = guest.get_full_info()
             except Guest.DoesNotExist:
-                guest = None
                 # Try device by serial_number
                 try:
                     device = Device.objects.get(serial_number=qr_value)
@@ -887,38 +893,34 @@ class SecurityScanAPIView(APIView):
                 except Device.DoesNotExist:
                     return Response({"detail": "Not found."}, status=404)
 
-        # If only person scanned, return info and expect device next
-        if not device_serial:
-            return Response({
-                "type": person_type,
-                "person": person_info
-            })
-
-        # If both person and device, log attendance
-        try:
-            device = Device.objects.get(serial_number=device_serial)
-        except Device.DoesNotExist:
-            return Response({"detail": "Device not found."}, status=404)
-
-        # Log attendance
-        
+        # Log attendance for employee or guest, device is optional
         content_type = ContentType.objects.get_for_model(profile or guest)
-        log = AccessLog.objects.create(
-            person_type=person_type,
-            person_id=person_id,
-            content_type=content_type,
-            device_serial=device.serial_number,
-            scanned_by=request.user,
-            status=action or 'in',
-        )
-        return Response({
+        log_kwargs = {
+            "person_type": person_type,
+            "person_id": person_id,
+            "content_type": content_type,
+            "scanned_by": request.user,
+            "status": action or 'in',
+        }
+        # If device_serial is provided and valid, add device_serial
+        if device_serial:
+            try:
+                device = Device.objects.get(serial_number=device_serial)
+                log_kwargs["device_serial"] = device.serial_number
+            except Device.DoesNotExist:
+                return Response({"detail": "Device not found."}, status=404)
+
+        log = AccessLog.objects.create(**log_kwargs)
+
+        response_data = {
             "type": person_type,
             "person": person_info,
-            "device": device.get_full_info(),
             "log": "Attendance logged.",
             "status": action or 'in',
-        })
+        }
+        if device:
+            response_data["device"] = device.get_full_info()
+        return Response(response_data)
 
 
 
-    
