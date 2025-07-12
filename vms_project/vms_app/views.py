@@ -585,7 +585,7 @@ class AccessLogViewSet(viewsets.ModelViewSet):
     Security logs access entries and exits.
     """
     serializer_class = AccessLogSerializer
-    permission_classes = [IsAuthenticated, IsSecurity]
+    permission_classes = [IsAuthenticated, IsSecurity, IsAdmin]
 
     def get_queryset(self):
         # For future: filter by user/date if needed for dashboards
