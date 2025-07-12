@@ -911,6 +911,7 @@ class SecurityScanAPIView(APIView):
                 return Response({"detail": "Device not found."}, status=404)
 
         log = AccessLog.objects.create(**log_kwargs)
+        log.save()
 
         response_data = {
             "type": person_type,
