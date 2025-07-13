@@ -263,45 +263,45 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         except EmployeeProfile.DoesNotExist:
             return Response({"detail": "EmployeeProfile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['get', 'post'], url_path='me')
-    def me(self, request):
-        """
-        GET: Returns the profile id, username, and role of the currently authenticated user (employee or admin).
-        POST: Allows the user to upload/update their profile picture (if employee).
-        """
-        user = request.user
-        if not user or not user.is_authenticated:
-            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
-        # Only allow employees to use this endpoint
-        if not hasattr(user, "role") or user.role != "employee":
-            return Response({"detail": "Not available for this user."}, status=status.HTTP_404_NOT_FOUND)
-        try:
-            profile = EmployeeProfile.objects.get(user=user)
-            if request.method == "POST":
-                # Handle profile picture upload
-                profile_picture = request.FILES.get("profile_picture")
-                if not profile_picture:
-                    return Response({"detail": "No profile_picture file provided."}, status=status.HTTP_400_BAD_REQUEST)
-                profile.profile_picture = profile_picture
-                profile.save()
-                return Response({
-                    "detail": "Profile picture updated successfully.",
-                    "profile_picture_url": profile.profile_picture if profile.profile_picture else None
-                }, status=status.HTTP_200_OK)
-            # GET: Return profile info
-            return Response({
-                "id": profile.id,  # employee profile primary key
-                "username": user.username,
-                "role": getattr(user, "role", None),
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                },
-                "profile_picture_url": profile.profile_picture if profile.profile_picture else None
-            })
-        except EmployeeProfile.DoesNotExist:
-            return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
+    # @action(detail=False, methods=['get', 'post'], url_path='me')
+    # def me(self, request):
+    #     """
+    #     GET: Returns the profile id, username, and role of the currently authenticated user (employee or admin).
+    #     POST: Allows the user to upload/update their profile picture (if employee).
+    #     """
+    #     user = request.user
+    #     if not user or not user.is_authenticated:
+    #         return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+    #     # Only allow employees to use this endpoint
+    #     if not hasattr(user, "role") or user.role != "employee":
+    #         return Response({"detail": "Not available for this user."}, status=status.HTTP_404_NOT_FOUND)
+    #     try:
+    #         profile = EmployeeProfile.objects.get(user=user)
+    #         if request.method == "POST":
+    #             # Handle profile picture upload
+    #             profile_picture = request.FILES.get("profile_picture")
+    #             if not profile_picture:
+    #                 return Response({"detail": "No profile_picture file provided."}, status=status.HTTP_400_BAD_REQUEST)
+    #             profile.profile_picture = profile_picture
+    #             profile.save()
+    #             return Response({
+    #                 "detail": "Profile picture updated successfully.",
+    #                 "profile_picture_url": profile.profile_picture if profile.profile_picture else None
+    #             }, status=status.HTTP_200_OK)
+    #         # GET: Return profile info
+    #         return Response({
+    #             "id": profile.id,  # employee profile primary key
+    #             "username": user.username,
+    #             "role": getattr(user, "role", None),
+    #             "user": {
+    #                 "id": user.id,
+    #                 "username": user.username,
+    #                 "email": user.email,
+    #             },
+    #             "profile_picture_url": profile.profile_picture if profile.profile_picture else None
+    #         })
+    #     except EmployeeProfile.DoesNotExist:
+    #         return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'], url_path='dashboard')
     def dashboard(self, request):
@@ -340,33 +340,33 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
 
         return Response(data)
 
-    @action(detail=True, methods=['get'], url_path='qr-code')
-    def qr_code(self, request, pk=None):
-        """
-        Returns the QR code image for the employee profile.
-        """
-        try:
-            profile = self.get_object()
-            if not profile.id_qr_code:
-                raise Http404("QR code not found.")
-            return FileResponse(profile.id_qr_code.open('rb'), content_type='image/png')
-        except Exception:
-            raise Http404("QR code not found.")
+    # @action(detail=True, methods=['get'], url_path='qr-code')
+    # def qr_code(self, request, pk=None):
+    #     """
+    #     Returns the QR code image for the employee profile.
+    #     """
+    #     try:
+    #         profile = self.get_object()
+    #         if not profile.id_qr_code:
+    #             raise Http404("QR code not found.")
+    #         return FileResponse(profile.id_qr_code.open('rb'), content_type='image/png')
+    #     except Exception:
+    #         raise Http404("QR code not found.")
 
-    @action(detail=False, methods=['get'], url_path='qr-code')
-    def my_qr_code(self, request):
-        """
-        Returns the QR code image for the currently authenticated employee.
-        """
-        try:
-            profile = EmployeeProfile.objects.get(user=request.user)
-            if not profile.id_qr_code:
-                raise Http404("QR code not found.")
-            return FileResponse(profile.id_qr_code.open('rb'), content_type='image/png')
-        except EmployeeProfile.DoesNotExist:
-            raise Http404("Profile not found.")
-        except Exception:
-            raise Http404("QR code not found.")
+    # @action(detail=False, methods=['get'], url_path='qr-code')
+    # def my_qr_code(self, request):
+    #     """
+    #     Returns the QR code image for the currently authenticated employee.
+    #     """
+    #     try:
+    #         profile = EmployeeProfile.objects.get(user=request.user)
+    #         if not profile.id_qr_code:
+    #             raise Http404("QR code not found.")
+    #         return FileResponse(profile.id_qr_code.open('rb'), content_type='image/png')
+    #     except EmployeeProfile.DoesNotExist:
+    #         raise Http404("Profile not found.")
+    #     except Exception:
+    #         raise Http404("QR code not found.")
 
     @action(detail=False, methods=['get'], url_path='attendance')
     def attendance(self, request):
