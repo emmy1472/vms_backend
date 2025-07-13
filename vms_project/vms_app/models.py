@@ -43,7 +43,7 @@ class EmployeeProfile(models.Model):
 
     def save(self, *args, **kwargs):
     # Generate QR code if it doesn't exist
-        if not self.id_qr_code:
+        if not self.id_qr_code and self.staff_id:
             qr = qrcode.make(self.staff_id)
             buffer = BytesIO()
             qr.save(buffer, format='PNG')
@@ -64,15 +64,15 @@ class EmployeeProfile(models.Model):
         super().save(*args, **kwargs)
 
     # Resize profile picture if necessary
-        if self.profile_picture:
-            try:
-                img = Image.open(self.profile_picture.path)
-                if img.height > 400 or img.width > 400:
-                    output_size = (400, 400)
-                    img.thumbnail(output_size)
-                    img.save(self.profile_picture.path)
-            except Exception:
-                pass  # Safely ignore if file not accessible or not an image
+        # if self.profile_picture:
+        #     try:
+        #         img = Image.open(self.profile_picture.path)
+        #         if img.height > 400 or img.width > 400:
+        #             output_size = (400, 400)
+        #             img.thumbnail(output_size)
+        #             img.save(self.profile_picture.path)
+        #     except Exception:
+        #         pass  # Safely ignore if file not accessible or not an image
 
 
     def get_full_info(self):

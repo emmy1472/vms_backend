@@ -169,7 +169,8 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_200_OK)
             
             if not profile.id_qr_code:
-                profile.generate_qr_code_and_save()
+                profile.save()  # Triggers QR code generation via the model
+
             # GET: Return profile info
             return Response({
                 "id": profile.id,
