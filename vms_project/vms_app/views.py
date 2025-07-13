@@ -168,8 +168,20 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "profile_picture_url": result["secure_url"] 
                 }, status=status.HTTP_200_OK)
             
-            if not profile.id_qr_code:
-                profile.save()  # Triggers QR code generation via the model
+            if not profile.id_qr_code and profile.staff_id:
+                qr = qrcode.make(profile.staff_id)
+                buffer = BytesIO()
+                qr.save(buffer, format='PNG')
+                buffer.seek(0)
+                qr_upload = cloudinary.uploader.upload(
+                    buffer,
+                    folder="vms_app/qr_codes",
+                    public_id=f"qr_codes/{profile.staff_id}_qr",
+                    overwrite=True,
+                    resource_type="image"
+                )
+                profile.id_qr_code = qr_upload['secure_url']
+                profile.save()
 
             # GET: Return profile info
             return Response({
