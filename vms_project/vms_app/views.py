@@ -180,8 +180,8 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "username": user.username,
                     "email": user.email,
                 },
-                "profile_picture_url": profile.profile_picture,
-                "id_qr_code_url": profile.id_qr_code,
+                "profile_picture_url": profile.profile_picture if profile.profile_picture else None,
+                "id_qr_code_url": profile.id_qr_code if profile.id_qr_code else None,
             })
         except EmployeeProfile.DoesNotExist:
             return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -282,7 +282,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "username": user.username,
                     "email": user.email,
                 },
-                "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+                "profile_picture_url": profile.profile_picture if profile.profile_picture else None
             })
         except EmployeeProfile.DoesNotExist:
             return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
