@@ -8,6 +8,9 @@ from django.core.files import File
 from PIL import Image  # type: ignore
 from .generate import generate_short_token
 from django.utils import timezone
+import cloudinary.uploader # type: ignore
+
+
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -31,8 +34,8 @@ class EmployeeProfile(models.Model):
     department = models.CharField(max_length=100)
     position = models.CharField(max_length=100)
     staff_id = models.CharField(max_length=50, unique=True)
-    id_qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
-    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
+    id_qr_code = models.URLField(blank=True)
+    profile_picture = models.URLField( blank=True, null=True)
     date_registered = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -43,9 +46,19 @@ class EmployeeProfile(models.Model):
         if not self.id_qr_code:
             qr = qrcode.make(self.staff_id)
             buffer = BytesIO()
-            qr.save(buffer)
+            qr.save(buffer, format='PNG')
             buffer.seek(0)
-            self.id_qr_code.save(f"{self.staff_id}_qr.png", File(buffer), save=False)
+            
+
+            result = cloudinary.uploader.upload(
+                buffer,
+                resource_type="image",
+                public_id=f"qr_codes/{self.staff_id}_qr",
+                overwrite=True,
+                folder="vms_app/qr_codes"
+            )
+
+            self.id_qr_code = result['secure_url']
 
     # Call the actual save method
         super().save(*args, **kwargs)
@@ -88,7 +101,7 @@ class Device(models.Model):
     owner_guest = models.ForeignKey('Guest', on_delete=models.CASCADE, null=True, blank=True)
     device_name = models.CharField(max_length=100)
     serial_number = models.CharField(max_length=100, unique=True)
-    qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
+    qr_code = models.URLField(blank=True)
     date_registered = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
 
@@ -100,7 +113,18 @@ class Device(models.Model):
             qr = qrcode.make(self.serial_number)
             buffer = BytesIO()
             qr.save(buffer)
-            self.qr_code.save(f"{self.serial_number}_qr.png", File(buffer), save=False)
+            buffer.seek(0)
+
+            result = cloudinary.uploader.upload(
+                buffer,
+                resource_type="image",
+                public_id=f"qr_codes/{self.serial_number}_qr",
+                overwrite=True,
+                folder="vms_app/qr_codes"
+            )
+
+            self.qr_code = result['secure_url']
+
         super().save(*args, **kwargs)
 
     def get_full_info(self):

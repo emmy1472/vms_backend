@@ -15,6 +15,7 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv # type: ignore
 import dj_database_url # type: ignore
+import cloudinary # type: ignore
 
 load_dotenv()
 
@@ -159,6 +160,13 @@ CSRF_COOKIE_SECURE = False     # False for local dev
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 60 * 60 * 24  # 1 day
 SESSION_SAVE_EVERY_REQUEST = False
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 
 # Password validation

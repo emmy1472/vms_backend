@@ -33,6 +33,7 @@ from utils.sms import send_sms
 
 import qrcode
 from io import BytesIO
+import cloudinary.uploader # type: ignore
 
 
 logger = logging.getLogger(__name__)
@@ -148,8 +149,16 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 profile_picture = request.FILES.get("profile_picture")
                 if not profile_picture:
                     return Response({"detail": "No profile_picture file provided."}, status=status.HTTP_400_BAD_REQUEST)
-                profile.profile_picture = profile_picture
+                result = cloudinary.uploader.upload(
+                    profile_picture,
+                    folder="vms_app/profile_pictures",
+                    public_id=f"profile_pictures/{user.id}_profile",
+                    overwrite=True,
+                    resource_type="image"
+                )
+                profile.profile_picture = result['secure_url']
                 profile.save()
+                
                 return Response({
                     "detail": "Profile picture updated successfully.",
                     "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
