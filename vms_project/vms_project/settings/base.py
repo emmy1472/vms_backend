@@ -216,11 +216,14 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+
+
+TIME_ZONE = 'Africa/Lagos'
+USE_TZ = True
 
 USE_I18N = True
 
-USE_TZ = True
+
 
 
 # Static files (CSS, JavaScript, Images)
