@@ -89,8 +89,8 @@ class EmployeeProfile(models.Model):
             "department": self.department,
             "position": self.position,
             "staff_id": self.staff_id,
-            "id_qr_code_url": self.id_qr_code.url if self.id_qr_code else None,
-            "profile_picture_url": self.profile_picture.url if self.profile_picture else None,
+            "id_qr_code_url": self.id_qr_code,
+            "profile_picture_url": self.profile_picture if self.profile_picture else None,
             "date_registered": self.date_registered,
         }
 
@@ -134,7 +134,7 @@ class Device(models.Model):
             "owner_guest": self.owner_guest.get_full_info() if self.owner_guest else None,
             "device_name": self.device_name,
             "serial_number": self.serial_number,
-            "qr_code_url": self.qr_code.url if self.qr_code else None,
+            "qr_code_url": self.qr_code if self.qr_code else None,
             "date_registered": self.date_registered,
             "is_verified": self.is_verified,
         }
@@ -154,7 +154,7 @@ class Guest(models.Model):
         editable=False,
         default=generate_short_token
     )
-    token_qr_code = models.ImageField(upload_to='qr_codes/', blank=True)
+    token_qr_code = models.URLField( blank=True)
     token_expiry = models.DateTimeField(default=timezone.now)
     is_verified = models.BooleanField(default=False)
     visit_date = models.DateField()
@@ -165,7 +165,18 @@ class Guest(models.Model):
             qr = qrcode.make(str(self.token))
             buffer = BytesIO()
             qr.save(buffer)
-            self.token_qr_code.save(f"{self.full_name}_token_qr.png", File(buffer), save=False)
+            buffer.seek(0)
+
+            result = cloudinary.uploader.upload(
+                buffer,
+                resource_type="image",
+                public_id=f"qr_codes/{self.token}_qr",
+                overwrite=True,
+                folder="vms_app/qr_codes"
+            )
+
+            self.token_qr_code = result['secure_url']
+
         super().save(*args, **kwargs)
 
     def is_token_expired(self):
@@ -188,7 +199,7 @@ class Guest(models.Model):
                 "staff_id": self.invited_by.staff_id,
             } if self.invited_by else None,
             "token": self.token,
-            "token_qr_code_url": self.token_qr_code.url if self.token_qr_code else None,
+            "token_qr_code_url": self.token_qr_code if self.token_qr_code else None,
             "is_verified": self.is_verified,
             "visit_date": self.visit_date,
             "created_at": self.created_at,
