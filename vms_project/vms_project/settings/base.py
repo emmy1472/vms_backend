@@ -48,7 +48,7 @@ else:
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = BASE_HOSTS.split(',') if BASE_HOSTS else []
 
-APP_LOGO_URL = "https://vms-backend-b84r.onrender.com"
+APP_LOGO_URL = "https://vms-staging-fmha.onrender.com/staticfiles/logo.png"
 
 
 AUTH_USER_MODEL = 'vms_app.User'

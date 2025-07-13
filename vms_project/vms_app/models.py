@@ -76,24 +76,7 @@ class Device(models.Model):
     def __str__(self):
         return self.device_name
 
-    def save(self, *args, **kwargs):
-        if not self.qr_code:
-            qr = qrcode.make(self.serial_number)
-            buffer = BytesIO()
-            qr.save(buffer)
-            buffer.seek(0)
-
-            result = cloudinary.uploader.upload(
-                buffer,
-                resource_type="image",
-                public_id=f"qr_codes/{self.serial_number}_qr",
-                overwrite=True,
-                folder="vms_app/qr_codes"
-            )
-
-            self.qr_code = result['secure_url']
-
-        super().save(*args, **kwargs)
+    
 
     def get_full_info(self):
         return {
