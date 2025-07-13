@@ -30,8 +30,14 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 BASE_HOSTS = os.getenv('BASE_HOST')
 
+
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'dev').lower()
+
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+if DJANGO_ENV == 'prod':
+    DEBUG = False
+else: 
+    DEBUG = True
 
 # Define your base hosts/origins in one place
 
@@ -97,7 +103,7 @@ SIMPLE_JWT = {
     # ...other SimpleJWT settings if needed...
 }
 
-DJANGO_ENV = os.getenv('DJANGO_ENV', 'dev').lower()
+
 
 if DJANGO_ENV == 'prod':
     DATABASES = {
