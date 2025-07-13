@@ -1,6 +1,7 @@
 from asyncio.log import logger
 from datetime import datetime
 import logging
+import profile
 from smtplib import SMTPException
 from rest_framework import viewsets, status, generics # type: ignore
 from rest_framework.response import Response # type: ignore
@@ -128,6 +129,8 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
         user = request.user
         if not user or not user.is_authenticated:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        
         # Only allow employees to use this endpoint
         if not hasattr(user, "role") or user.role != "employee":
             # For admin, return basic user info (no profile)
@@ -161,8 +164,11 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 
                 return Response({
                     "detail": "Profile picture updated successfully.",
-                    "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+                    "profile_picture_url": profile.profile_picture if profile.profile_picture else None
                 }, status=status.HTTP_200_OK)
+            
+            if not profile.id_qr_code:
+                profile.generate_qr_code_and_save()
             # GET: Return profile info
             return Response({
                 "id": profile.id,
@@ -173,7 +179,8 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "username": user.username,
                     "email": user.email,
                 },
-                "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+                "profile_picture_url": profile.profile_picture if profile.profile_picture else None,
+                "id_qr_code_url": profile.id_qr_code,
             })
         except EmployeeProfile.DoesNotExist:
             return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
