@@ -31,10 +31,10 @@ from .serializers import (
 from .models import EmployeeProfile, Device, Guest, AccessLog, Message
 from .permissions import IsAdmin, IsEmployee, IsSecurity, IsEmployeeOrSecurityOrAdmin 
 from utils.sms import send_sms
-
 import qrcode
 from io import BytesIO
 import cloudinary.uploader # type: ignore
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 
 logger = logging.getLogger(__name__)
@@ -162,7 +162,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     overwrite=True,
                     resource_type="image"
                 )
-                
+
                 profile.profile_picture = result['secure_url']
                 profile.save()
                 
