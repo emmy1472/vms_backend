@@ -270,7 +270,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 profile.save()
                 return Response({
                     "detail": "Profile picture updated successfully.",
-                    "profile_picture_url": profile.profile_picture.url if profile.profile_picture else None
+                    "profile_picture_url": profile.profile_picture if profile.profile_picture else None
                 }, status=status.HTTP_200_OK)
             # GET: Return profile info
             return Response({
@@ -529,9 +529,17 @@ class GuestViewSet(viewsets.ModelViewSet):
             qr_img.save(buffer)
             buffer.seek(0)
 
-            # Save QR to guest instance
-            qr_file = ContentFile(buffer.getvalue(), f'{guest.token}.png')
-            guest.token_qr_code.save(f'{guest.token}.png', qr_file)
+    # Upload QR code image to Cloudinary
+            result = cloudinary.uploader.upload(
+                buffer,
+                folder="vms_app/guest_qr_codes",
+                public_id=f"guest_qr_{guest.token}",
+                overwrite=True,
+                resource_type="image"
+            )
+
+    # Save the secure URL returned by Cloudinary
+            guest.token_qr_code = result["secure_url"]
             guest.save()
 
             # Get logo URL from settings for dynamic use

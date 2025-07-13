@@ -172,7 +172,7 @@ class Guest(models.Model):
                 resource_type="image",
                 public_id=f"qr_codes/{self.token}_qr",
                 overwrite=True,
-                folder="vms_app/qr_codes"
+                folder="qr_codes"
             )
 
             self.token_qr_code = result['secure_url']
