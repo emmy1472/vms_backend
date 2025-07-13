@@ -143,7 +143,8 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "username": user.username,
                     "email": user.email,
                 },
-                "profile_picture_url": None
+                "profile_picture_url": None,
+                "id_qr_code_url": None
             })
         try:
             profile = EmployeeProfile.objects.get(user=user)
@@ -164,7 +165,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 
                 return Response({
                     "detail": "Profile picture updated successfully.",
-                    "profile_picture_url": profile.profile_picture if profile.profile_picture else None
+                    "profile_picture_url": profile.profile_picture 
                 }, status=status.HTTP_200_OK)
             
             if not profile.id_qr_code:
@@ -179,7 +180,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                     "username": user.username,
                     "email": user.email,
                 },
-                "profile_picture_url": profile.profile_picture if profile.profile_picture else None,
+                "profile_picture_url": profile.profile_picture,
                 "id_qr_code_url": profile.id_qr_code,
             })
         except EmployeeProfile.DoesNotExist:
