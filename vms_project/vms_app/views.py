@@ -165,7 +165,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 
                 return Response({
                     "detail": "Profile picture updated successfully.",
-                    "profile_picture_url": profile.profile_picture 
+                    "profile_picture_url": result["secure_url"] 
                 }, status=status.HTTP_200_OK)
             
             if not profile.id_qr_code:
