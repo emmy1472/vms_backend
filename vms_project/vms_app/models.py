@@ -40,6 +40,9 @@ class EmployeeProfile(models.Model):
 
     def __str__(self):
         return self.user.get_full_name() or self.user.username
+    
+    def __str__(self):
+        return self.full_name  
 
     
 
@@ -130,6 +133,9 @@ class Guest(models.Model):
 
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.full_name  
+
     def is_token_expired(self):
         # Token expires 24 hours after visit_date (midnight to midnight)
         from django.utils import timezone
@@ -173,6 +179,22 @@ class AccessLog(models.Model):
     time_in = models.DateTimeField(auto_now_add=True)
     time_out = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=(('in', 'In'), ('out', 'Out')))
+
+    def __str__(self):
+        return f"{self.person}"
+    
+    @property
+    def person_name(self):
+        try:
+            return str(self.person)  # relies on Guest and EmployeeProfile having a good __str__
+        except Exception:
+            return "Unknown"
+        
+    def __str__(self):
+        return f"{self.person_name}"
+
+
+
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
