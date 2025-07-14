@@ -697,10 +697,10 @@ class AccessLogViewSet(viewsets.ModelViewSet):
             )
         else:
             # Admin and security can see all logs
-            logs = AccessLog.objects.all()
+            return AccessLog.objects.all()
 
-        serializer = AccessLogSerializer(logs, many=True)
-        return Response(serializer.data)
+        
+        
 
 
 
