@@ -115,10 +115,10 @@ class AccessLogSerializer(serializers.ModelSerializer):
         fields = ['id', 'person_type', 'person_id', 'person_name', 'device_serial', 'scanned_by', 'time_in', 'time_out', 'status']
 
     def get_person_name(self, obj):
-        if obj.person_type == 'employee':
-            return obj.person.employeeprofile.full_name
-        elif obj.person_type == 'guest':
+        if obj.person_type == "guest" and obj.person and hasattr(obj.person, "guest"):
             return obj.person.guest.full_name
+        elif obj.person_type == "employee" and obj.person and hasattr(obj.person, "employeeprofile"):
+            return obj.person.employeeprofile.full_name
         return "Unknown"
 
 class MessageSerializer(serializers.ModelSerializer):
