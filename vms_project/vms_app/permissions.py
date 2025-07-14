@@ -26,3 +26,18 @@ class IsOwnerOrAdmin(BasePermission):
 class IsEmployeeOrSecurityOrAdmin(BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.role in ["employee", "security", "admin"]
+    
+
+class IsAdminOrReadOnly(BasePermission):
+    def has_permission(self, request, view):
+        # Admin can do anything, employee can only read
+        if not request.user.is_authenticated:
+            return False
+        if getattr(request.user, "role", None) == "admin":
+            return True
+        if (
+            request.method in ["GET", "HEAD", "OPTIONS"]
+            and getattr(request.user, "role", None) == "employee"
+        ):
+            return True
+        return False

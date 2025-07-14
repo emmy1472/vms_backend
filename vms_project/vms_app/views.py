@@ -34,7 +34,7 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
 )
 from .models import EmployeeProfile, Device, Guest, AccessLog, Message
-from .permissions import IsAdmin, IsEmployee, IsSecurity, IsEmployeeOrSecurityOrAdmin
+from .permissions import IsAdmin, IsEmployee, IsSecurity, IsEmployeeOrSecurityOrAdmin, IsAdminOrReadOnly
 from utils.sms import send_sms
 import qrcode
 from io import BytesIO
@@ -701,19 +701,7 @@ class AccessLogViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class IsAdminOrReadOnly(BasePermission):
-    def has_permission(self, request, view):
-        # Admin can do anything, employee can only read
-        if not request.user.is_authenticated:
-            return False
-        if getattr(request.user, "role", None) == "admin":
-            return True
-        if (
-            request.method in ["GET", "HEAD", "OPTIONS"]
-            and getattr(request.user, "role", None) == "employee"
-        ):
-            return True
-        return False
+
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -1039,70 +1027,69 @@ class SecurityScanAPIView(APIView):
         """
         Accepts a QR/token and returns the type (employee, guest, device) and info.
         If both person and device are provided, logs attendance (in/out).
-        If only person (employee/guest) is provided, logs attendance for that person.
         """
         qr_value = request.data.get("qr_value")
         device_serial = request.data.get("device_serial")
-        action = request.data.get("action")  # 'in' or 'out'
+        action = request.data.get("action", "in")  # default to 'in'
+
         if not qr_value:
             return Response({"detail": "qr_value is required."}, status=400)
 
         person_type = None
         person_id = None
-        person_info = None
-        profile = None
-        guest = None
+        person_obj = None
+        person_info = {}
         device = None
 
-        # Try to match employee by staff_id
+        # 1. Try to identify person by staff_id or token
         try:
-            profile = EmployeeProfile.objects.get(staff_id=qr_value)
+            person_obj = EmployeeProfile.objects.get(staff_id=qr_value)
             person_type = "employee"
-            person_id = profile.id
-            person_info = profile.get_full_info()
+            person_id = person_obj.id
+            person_info = person_obj.get_full_info()
         except EmployeeProfile.DoesNotExist:
-            # Try guest by token
             try:
-                guest = Guest.objects.get(token=qr_value)
+                person_obj = Guest.objects.get(token=qr_value)
                 person_type = "guest"
-                person_id = guest.id
-                person_info = guest.get_full_info()
+                person_id = person_obj.id
+                person_info = person_obj.get_full_info()
             except Guest.DoesNotExist:
-                # Try device by serial_number
+                # 2. Try to match as device
                 try:
                     device = Device.objects.get(serial_number=qr_value)
-                    return Response(
-                        {"type": "device", "device": device.get_full_info()}
-                    )
+                    return Response({
+                        "type": "device",
+                        "device": device.get_full_info()
+                    }, status=200)
                 except Device.DoesNotExist:
-                    return Response({"detail": "Not found."}, status=404)
+                    return Response({"detail": "QR or token not found."}, status=404)
 
-        # Log attendance for employee or guest, device is optional
-        content_type = ContentType.objects.get_for_model(profile or guest)
-        log_kwargs = {
-            "person_type": person_type,
-            "person_id": person_id,
-            "content_type": content_type,
-            "scanned_by": request.user,
-            "status": action or "in",
-        }
-        # If device_serial is provided and valid, add device_serial
+        # 3. Get content_type for GenericForeignKey
+        content_type = ContentType.objects.get_for_model(person_obj)
+
+        # 4. Try to match device (optional)
         if device_serial:
             try:
                 device = Device.objects.get(serial_number=device_serial)
-                log_kwargs["device_serial"] = device.serial_number
             except Device.DoesNotExist:
                 return Response({"detail": "Device not found."}, status=404)
 
-        log = AccessLog.objects.create(**log_kwargs)
-        log.save()
+        # 5. Log access
+        log = AccessLog.objects.create(
+            person_type=person_type,
+            person_id=person_id,
+            content_type=content_type,
+            device_serial=device.serial_number if device else None,
+            scanned_by=request.user,
+            status=action,
+        )
 
-        response_data = {
+        return Response({
             "type": person_type,
+            "person_name": str(person_obj),  # Will use __str__
             "person": person_info,
-            "log": "Attendance logged.",
-            "status": action or "in",
-        }
-        if device:
-            response_data["device"] = device.get_full_info()
-        return Response(response_data)
+            "status": action,
+            "message": "Attendance logged successfully.",
+            "device": device.get_full_info() if device else None,
+            "timestamp": log.time_in,
+        }, status=200)

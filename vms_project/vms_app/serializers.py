@@ -108,9 +108,18 @@ class GuestSerializer(serializers.ModelSerializer):
 
 
 class AccessLogSerializer(serializers.ModelSerializer):
+    person_name = serializers.SerializerMethodField()
+
     class Meta:
         model = AccessLog
-        fields = ['id', 'person_type', 'person_id', 'device_serial', 'scanned_by', 'time_in', 'time_out', 'status']
+        fields = ['id', 'person_type', 'person_id', 'person_name', 'device_serial', 'scanned_by', 'time_in', 'time_out', 'status']
+
+    def get_person_name(self, obj):
+        if obj.person_type == 'employee':
+            return obj.person.employeeprofile.full_name
+        elif obj.person_type == 'guest':
+            return obj.person.guest.full_name
+        return "Unknown"
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.CharField(source="sender.username", read_only=True)
