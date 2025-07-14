@@ -34,7 +34,7 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
 )
 from .models import EmployeeProfile, Device, Guest, AccessLog, Message
-from .permissions import IsAdmin, IsEmployee, IsSecurity, IsEmployeeOrSecurityOrAdmin, IsAdminOrReadOnly
+from .permissions import IsAdmin, IsEmployee, IsSecurity, IsEmployeeOrSecurityOrAdmin, IsAdminOrReadOnly, IsAdminOrEmployee
 from utils.sms import send_sms
 import qrcode
 from io import BytesIO
@@ -125,7 +125,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
 class EmployeeProfileViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsAuthenticated, IsEmployee]
+    permission_classes = [IsAuthenticated, IsAdminOrEmployee]
 
     def get_queryset(self):
         user = self.request.user

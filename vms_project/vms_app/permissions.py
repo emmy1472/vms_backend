@@ -41,3 +41,7 @@ class IsAdminOrReadOnly(BasePermission):
         ):
             return True
         return False
+
+class IsAdminOrEmployee(BasePermission):
+    def has_permission(self, request, view):
+        return hasattr(request.user, 'role') and request.user.role in ['admin', 'employee']
