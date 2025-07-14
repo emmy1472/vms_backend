@@ -6,6 +6,11 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User, EmployeeProfile, Device, Guest, AccessLog, Message
 from .forms import CustomUserCreationForm
 
+
+admin.site.site_header = "AMS Admin Dashboard"
+admin.site.site_title = "AMS Admin Portal"
+admin.site.index_title = "Welcome to the Access Management System"
+
 # Extend the default UserAdmin to show custom fields
 class UserAdmin(BaseUserAdmin):
     add_form = CustomUserCreationForm
