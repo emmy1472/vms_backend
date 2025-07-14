@@ -839,24 +839,29 @@ class AdminAccessLogsAPIView(APIView):
     def get(self, request):
         logs = AccessLog.objects.all().order_by("-time_in")
         data = []
+        
 
         for l in logs:
             # Determine person name safely
+            # Get person name safely
             person_name = "Unknown"
-            if l.person_type == "employee" and l.person and hasattr(l.person, "employeeprofile"):
-                person_name = getattr(l.person.employeeprofile, "full_name", "Unknown")
-            elif l.person_type == "guest" and l.person and hasattr(l.person, "guest"):
-                person_name = getattr(l.person.guest, "full_name", "Unknown")
+            if l.person_type == "employee":
+                if hasattr(l.person, "full_name"):
+                    person_name = l.person.full_name
+            elif l.person_type == "guest":
+                if hasattr(l.person, "full_name"):
+                    person_name = l.person.full_name
+
+            device_serial = getattr(getattr(l, "device", None), "serial_number", None)
+
+
 
             data.append({
                 "id": l.id,
                 "person_type": l.person_type,
                 "person_id": l.person_id,
                 "person_name": person_name,
-                "device_serial": (
-                    getattr(l, "device", None).serial_number
-                    if hasattr(l, "device") and l.device else None
-                ),
+                "device_serial": device_serial,
                 "scanned_by": (
                     getattr(l.scanned_by, "username", None)
                     if l.scanned_by else None
