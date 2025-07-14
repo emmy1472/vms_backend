@@ -839,26 +839,35 @@ class AdminAccessLogsAPIView(APIView):
     def get(self, request):
         logs = AccessLog.objects.all().order_by("-time_in")
         data = []
+
         for l in logs:
-            data.append(
-                {
-                    "id": l.id,
-                    "person_type": l.person_type,
-                    "person_id": l.person_id,
-                    "device_serial": (
-                        getattr(l.device, "serial_number", None) if l.device else None
-                    ),
-                    "scanned_by": (
-                        getattr(l.scanned_by, "username", None)
-                        if l.scanned_by
-                        else None
-                    ),
-                    "time_in": l.time_in,
-                    "time_out": l.time_out,
-                    "status": l.status,
-                }
-            )
+            # Determine person name safely
+            person_name = "Unknown"
+            if l.person_type == "employee" and l.person and hasattr(l.person, "employeeprofile"):
+                person_name = getattr(l.person.employeeprofile, "full_name", "Unknown")
+            elif l.person_type == "guest" and l.person and hasattr(l.person, "guest"):
+                person_name = getattr(l.person.guest, "full_name", "Unknown")
+
+            data.append({
+                "id": l.id,
+                "person_type": l.person_type,
+                "person_id": l.person_id,
+                "person_name": person_name,
+                "device_serial": (
+                    getattr(l, "device", None).serial_number
+                    if hasattr(l, "device") and l.device else None
+                ),
+                "scanned_by": (
+                    getattr(l.scanned_by, "username", None)
+                    if l.scanned_by else None
+                ),
+                "time_in": l.time_in,
+                "time_out": l.time_out,
+                "status": l.status,
+            })
+
         return Response(data)
+
 
 
 @api_view(["GET"])
