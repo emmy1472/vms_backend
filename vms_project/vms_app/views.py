@@ -685,8 +685,10 @@ class AccessLogViewSet(viewsets.ModelViewSet):
     serializer_class = AccessLogSerializer
     permission_classes = [IsAuthenticated, IsEmployeeOrSecurityOrAdmin]
 
-    def get(self, request):
-        user = request.user
+    
+
+    def get_queryset(self):
+        user = self.request.user
 
         if user.role == "employee":
             # Return only this employee's logs
