@@ -928,9 +928,14 @@ class SecurityDeviceViewSet(viewsets.ModelViewSet):
         serial = serializer.validated_data["serial_number"]
         img = qrcode.make(serial)
         buffer = BytesIO()
-        img.save(buffer)
-        qr_image = ContentFile(buffer.getvalue(), f"{serial}.png")
-        serializer.save(qr_code=qr_image)
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+
+    # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(buffer, public_id=serial, folder="qr_codes")
+
+    # Save the Cloudinary URL in the qr_code field (make sure it's a URLField/ImageField)
+        serializer.save(qr_code=upload_result["secure_url"])
 
     @action(detail=False, methods=["post"], url_path="scan-qr")
     def scan_qr(self, request):
