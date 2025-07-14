@@ -692,7 +692,7 @@ class AccessLogViewSet(viewsets.ModelViewSet):
 
         if user.role == "employee":
             # Return only this employee's logs
-            logs = AccessLog.objects.filter(
+            return AccessLog.objects.filter(
                 person_type="employee", person_id=user.employeeprofile.id
             )
         else:
