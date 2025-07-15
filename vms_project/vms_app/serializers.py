@@ -112,7 +112,7 @@ class AccessLogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AccessLog
-        fields = ['id', 'person_type', 'person_id', 'person_name', 'device_serial', 'scanned_by', 'time_in', 'time_out', 'status']
+        fields = ['id', 'person_type', 'person_id', 'person_name', 'device', 'scanned_by', 'time_in', 'time_out', 'status']
 
     def get_person_name(self, obj):
         if obj.person_type == "guest" and obj.person and hasattr(obj.person, "guest"):

@@ -852,7 +852,7 @@ class AdminAccessLogsAPIView(APIView):
                 if hasattr(l.person, "full_name"):
                     person_name = l.person.full_name
 
-            device_serial = getattr(getattr(l, "device", None), "serial_number", None)
+            device = getattr(getattr(l, "device", None), "serial_number", None)
 
 
 
@@ -861,7 +861,7 @@ class AdminAccessLogsAPIView(APIView):
                 "person_type": l.person_type,
                 "person_id": l.person_id,
                 "person_name": person_name,
-                "device_serial": device_serial,
+                "device": device,
                 "scanned_by": (
                     getattr(l.scanned_by, "username", None)
                     if l.scanned_by else None
@@ -1050,7 +1050,7 @@ class SecurityScanAPIView(APIView):
         If both person and device are provided, logs attendance (in/out).
         """
         qr_value = request.data.get("qr_value")
-        device_serial = request.data.get("device_serial")
+        device = request.data.get("device")
         action = request.data.get("action", "in")  # default to 'in'
 
         if not qr_value:
@@ -1089,9 +1089,9 @@ class SecurityScanAPIView(APIView):
         content_type = ContentType.objects.get_for_model(person_obj)
 
         # 4. Try to match device (optional)
-        if device_serial:
+        if device:
             try:
-                device = Device.objects.get(serial_number=device_serial)
+                device = Device.objects.get(serial_number=device)
             except Device.DoesNotExist:
                 return Response({"detail": "Device not found."}, status=404)
 
@@ -1100,7 +1100,7 @@ class SecurityScanAPIView(APIView):
             person_type=person_type,
             person_id=person_id,
             content_type=content_type,
-            device_serial=device.serial_number if device else None,
+            device=device.serial_number if device else None,
             scanned_by=request.user,
             status=action,
         )

@@ -174,7 +174,7 @@ class AccessLog(models.Model):
     person_id = models.PositiveIntegerField()
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     person = GenericForeignKey('content_type', 'person_id')
-    device_serial = models.CharField(max_length=100, null=True, blank=True)
+    device = models.ForeignKey(Device, max_length=100, null=True, blank=True, on_delete=models.SET_NULL)
     scanned_by = models.ForeignKey('vms_app.User', on_delete=models.SET_NULL, null=True, limit_choices_to={'role': 'security'})
     time_in = models.DateTimeField(auto_now_add=True)
     time_out = models.DateTimeField(null=True, blank=True)
