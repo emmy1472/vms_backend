@@ -40,6 +40,7 @@ import qrcode
 from io import BytesIO
 import cloudinary.uploader  # type: ignore
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.utils.timezone import now
 
 
 logger = logging.getLogger(__name__)
@@ -1045,37 +1046,34 @@ class SecurityScanAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def post(self, request):
-        """
-        Accepts a QR/token and returns the type (employee, guest, device) and info.
-        If both person and device are provided, logs attendance (in/out).
-        """
         qr_value = request.data.get("qr_value")
-        device = request.data.get("device")
-        action = request.data.get("action", "in")  # default to 'in'
+        device_serial = request.data.get("device_serial")
+        action = request.data.get("action", "in")
 
         if not qr_value:
             return Response({"detail": "qr_value is required."}, status=400)
 
         person_type = None
-        person_id = None
         person_obj = None
         person_info = {}
         device = None
 
-        # 1. Try to identify person by staff_id or token
+        # 1. Identify person: Employee or Guest
         try:
             person_obj = EmployeeProfile.objects.get(staff_id=qr_value)
             person_type = "employee"
-            person_id = person_obj.id
             person_info = person_obj.get_full_info()
         except EmployeeProfile.DoesNotExist:
             try:
-                person_obj = Guest.objects.get(token=qr_value)
+                guest = Guest.objects.get(token=qr_value)
+                if guest.token_expiry and guest.token_expiry < now():
+                    return Response({"detail": "Token has expired."}, status=403)
+
+                person_obj = guest
                 person_type = "guest"
-                person_id = person_obj.id
                 person_info = person_obj.get_full_info()
             except Guest.DoesNotExist:
-                # 2. Try to match as device
+                # 2. Fallback: try if it's a device
                 try:
                     device = Device.objects.get(serial_number=qr_value)
                     return Response({
@@ -1085,20 +1083,18 @@ class SecurityScanAPIView(APIView):
                 except Device.DoesNotExist:
                     return Response({"detail": "QR or token not found."}, status=404)
 
-        # 3. Get content_type for GenericForeignKey
-        content_type = ContentType.objects.get_for_model(person_obj)
-
-        # 4. Try to match device (optional)
-        if device:
+        # 3. Optional: match device serial
+        if device_serial:
             try:
-                device = Device.objects.get(serial_number=device)
+                device = Device.objects.get(serial_number=device_serial)
             except Device.DoesNotExist:
                 return Response({"detail": "Device not found."}, status=404)
 
-        # 5. Log access
+        # 4. Create access log
+        content_type = ContentType.objects.get_for_model(person_obj)
         log = AccessLog.objects.create(
             person_type=person_type,
-            person_id=person_id,
+            person_id=person_obj.id,
             content_type=content_type,
             device=device.serial_number if device else None,
             scanned_by=request.user,
@@ -1107,10 +1103,9 @@ class SecurityScanAPIView(APIView):
 
         return Response({
             "type": person_type,
-            "person_name": str(person_obj),  # Will use __str__
             "person": person_info,
             "status": action,
-            "message": "Attendance logged successfully.",
             "device": device.get_full_info() if device else None,
+            "log": "Attendance logged successfully.",
             "timestamp": log.time_in,
         }, status=200)

@@ -57,7 +57,7 @@ class GuestAdmin(admin.ModelAdmin):
 
 @admin.register(AccessLog)
 class AccessLogAdmin(admin.ModelAdmin):
-    list_display = ['person_type', 'person_name', 'serial_number', 'scanned_by', 'time_in', 'time_out', 'status']
+    list_display = ['person_type', 'person_name', 'device', 'scanned_by', 'time_in', 'time_out', 'status']
     list_filter = ['status', 'person_type', 'time_in']
 
 @admin.register(Message)
