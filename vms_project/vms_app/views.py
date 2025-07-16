@@ -852,7 +852,7 @@ class AdminAccessLogsAPIView(APIView):
                 if hasattr(l.person, "full_name"):
                     person_name = l.person.full_name
 
-            device = getattr(getattr(l, "device", None), "serial_number", None)
+            device_serial = str(l.device) if l.device else "No Device"
 
 
 
@@ -861,7 +861,7 @@ class AdminAccessLogsAPIView(APIView):
                 "person_type": l.person_type,
                 "person_id": l.person_id,
                 "person_name": person_name,
-                "device": device,
+                "device": device_serial,
                 "scanned_by": (
                     getattr(l.scanned_by, "username", None)
                     if l.scanned_by else None

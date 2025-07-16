@@ -120,6 +120,9 @@ class AccessLogSerializer(serializers.ModelSerializer):
         elif obj.person_type == "employee" and obj.person and hasattr(obj.person, "employeeprofile"):
             return obj.person.employeeprofile.full_name
         return "Unknown"
+    
+    def get_device(self, obj):
+        return str(obj.device) if obj.device else "No Device"
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.CharField(source="sender.username", read_only=True)

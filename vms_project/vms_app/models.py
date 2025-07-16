@@ -183,6 +183,9 @@ class AccessLog(models.Model):
     def __str__(self):
         return f"{self.person}"
     
+    def __str__(self):
+        return f"{self.device}"
+    
     @property
     def person_name(self):
         try:
@@ -192,7 +195,12 @@ class AccessLog(models.Model):
         
     def __str__(self):
         return f"{self.person_name}"
-
+    
+    def __str__(self):
+        try:
+            return self.device.serial_number
+        except AttributeError:
+            return "No Device"
 
 
 
