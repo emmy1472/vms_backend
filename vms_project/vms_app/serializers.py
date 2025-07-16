@@ -122,7 +122,7 @@ class AccessLogSerializer(serializers.ModelSerializer):
         return "Unknown"
     
     def get_device(self, obj):
-        return str(obj.device) if obj.device else "No Device"
+        return str(obj.device.serial_number) if obj.device else "No Device"
 
 class MessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.CharField(source="sender.username", read_only=True)
