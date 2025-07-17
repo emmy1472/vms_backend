@@ -788,7 +788,7 @@ class AdminDevicesAPIView(APIView):
                 }
             )
         return Response(data)
-
+    
     def perform_create(self, serializer):
         # Admin can register devices for employees or guests
         serial = serializer.validated_data["serial_number"]
@@ -908,7 +908,7 @@ def user_me(request):
 
 
 class SecurityDeviceViewSet(viewsets.ModelViewSet):
-
+    serializer_class = DeviceSerializer
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get_queryset(self):
@@ -1008,10 +1008,11 @@ class SecurityGuestsAPIView(APIView):
 
 class SecurityAccessLogViewSet(viewsets.ModelViewSet):
     serializer_class = AccessLogSerializer
+    queryset = AccessLog.objects.all()  # ✅ Add this
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get(self, request):
-        logs = AccessLog.objects.all().order_by("-time_in")
+        logs = self.get_queryset().order_by("-time_in")
         data = []
 
         for l in logs:
@@ -1046,7 +1047,6 @@ class SecurityAccessLogViewSet(viewsets.ModelViewSet):
             )
 
         return Response(data)
-
 
 class SecurityDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
