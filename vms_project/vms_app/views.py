@@ -34,7 +34,14 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
 )
 from .models import EmployeeProfile, Device, Guest, AccessLog, Message
-from .permissions import IsAdmin, IsEmployee, IsSecurity, IsEmployeeOrSecurityOrAdmin, IsAdminOrReadOnly, IsAdminOrEmployee
+from .permissions import (
+    IsAdmin,
+    IsEmployee,
+    IsSecurity,
+    IsEmployeeOrSecurityOrAdmin,
+    IsAdminOrReadOnly,
+    IsAdminOrEmployee,
+)
 from utils.sms import send_sms
 import qrcode
 from io import BytesIO
@@ -686,8 +693,6 @@ class AccessLogViewSet(viewsets.ModelViewSet):
     serializer_class = AccessLogSerializer
     permission_classes = [IsAuthenticated, IsEmployeeOrSecurityOrAdmin]
 
-    
-
     def get_queryset(self):
         user = self.request.user
 
@@ -699,12 +704,6 @@ class AccessLogViewSet(viewsets.ModelViewSet):
         else:
             # Admin and security can see all logs
             return AccessLog.objects.all()
-
-        
-        
-
-
-
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -789,6 +788,22 @@ class AdminDevicesAPIView(APIView):
                 }
             )
         return Response(data)
+    
+    def perform_create(self, serializer):
+        # Admin can register devices for employees or guests
+        serial = serializer.validated_data["serial_number"]
+        img = qrcode.make(serial)
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            buffer, public_id=serial, folder="qr_codes"
+        )
+
+        # Save the Cloudinary URL in the qr_code field (make sure it's a URLField/ImageField)
+        serializer.save(qr_code=upload_result["secure_url"])
 
 
 class AdminGuestsAPIView(APIView):
@@ -840,7 +855,6 @@ class AdminAccessLogsAPIView(APIView):
     def get(self, request):
         logs = AccessLog.objects.all().order_by("-time_in")
         data = []
-        
 
         for l in logs:
             # Determine person name safely
@@ -855,25 +869,25 @@ class AdminAccessLogsAPIView(APIView):
 
             device_serial = str(l.device) if l.device else "No Device"
 
-
-
-            data.append({
-                "id": l.id,
-                "person_type": l.person_type,
-                "person_id": l.person_id,
-                "person_name": person_name,
-                "device": device_serial,
-                "scanned_by": (
-                    getattr(l.scanned_by, "username", None)
-                    if l.scanned_by else None
-                ),
-                "time_in": l.time_in,
-                "time_out": l.time_out,
-                "status": l.status,
-            })
+            data.append(
+                {
+                    "id": l.id,
+                    "person_type": l.person_type,
+                    "person_id": l.person_id,
+                    "person_name": person_name,
+                    "device": device_serial,
+                    "scanned_by": (
+                        getattr(l.scanned_by, "username", None)
+                        if l.scanned_by
+                        else None
+                    ),
+                    "time_in": l.time_in,
+                    "time_out": l.time_out,
+                    "status": l.status,
+                }
+            )
 
         return Response(data)
-
 
 
 @api_view(["GET"])
@@ -932,10 +946,12 @@ class SecurityDeviceViewSet(viewsets.ModelViewSet):
         img.save(buffer, format="PNG")
         buffer.seek(0)
 
-    # Upload to Cloudinary
-        upload_result = cloudinary.uploader.upload(buffer, public_id=serial, folder="qr_codes")
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            buffer, public_id=serial, folder="qr_codes"
+        )
 
-    # Save the Cloudinary URL in the qr_code field (make sure it's a URLField/ImageField)
+        # Save the Cloudinary URL in the qr_code field (make sure it's a URLField/ImageField)
         serializer.save(qr_code=upload_result["secure_url"])
 
     @action(detail=False, methods=["post"], url_path="scan-qr")
@@ -994,24 +1010,42 @@ class SecurityAccessLogViewSet(viewsets.ModelViewSet):
     serializer_class = AccessLogSerializer
     permission_classes = [IsAuthenticated, IsSecurity]
 
-    def get_queryset(self):
-        return AccessLog.objects.all().order_by("-time_in")
+    def get(self, request):
+        logs = AccessLog.objects.all().order_by("-time_in")
+        data = []
 
-    @action(detail=False, methods=["post"], url_path="scan-qr")
-    def scan_qr(self, request):
-        token = request.data.get("token")
-        if not token:
-            return Response(
-                {"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            guest = Guest.objects.get(token=token)
-            return Response(guest.get_full_info())
-        except Guest.DoesNotExist:
-            return Response(
-                {"detail": "Guest not found."}, status=status.HTTP_404_NOT_FOUND
+        for l in logs:
+            # Determine person name safely
+            # Get person name safely
+            person_name = "Unknown"
+            if l.person_type == "employee":
+                if hasattr(l.person, "full_name"):
+                    person_name = l.person.full_name
+            elif l.person_type == "guest":
+                if hasattr(l.person, "full_name"):
+                    person_name = l.person.full_name
+
+            device_serial = str(l.device) if l.device else "No Device"
+
+            data.append(
+                {
+                    "id": l.id,
+                    "person_type": l.person_type,
+                    "person_id": l.person_id,
+                    "person_name": person_name,
+                    "device": device_serial,
+                    "scanned_by": (
+                        getattr(l.scanned_by, "username", None)
+                        if l.scanned_by
+                        else None
+                    ),
+                    "time_in": l.time_in,
+                    "time_out": l.time_out,
+                    "status": l.status,
+                }
             )
 
+        return Response(data)
 
 class SecurityDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
@@ -1076,10 +1110,9 @@ class SecurityScanAPIView(APIView):
                 # 2. Fallback: try if it's a device
                 try:
                     device = Device.objects.get(serial_number=qr_value)
-                    return Response({
-                        "type": "device",
-                        "device": device.get_full_info()
-                    }, status=200)
+                    return Response(
+                        {"type": "device", "device": device.get_full_info()}, status=200
+                    )
                 except Device.DoesNotExist:
                     return Response({"detail": "QR or token not found."}, status=404)
 
@@ -1101,11 +1134,14 @@ class SecurityScanAPIView(APIView):
             status=action,
         )
 
-        return Response({
-            "type": person_type,
-            "person": person_info,
-            "status": action,
-            "device": device.get_full_info() if device else None,
-            "log": "Attendance logged successfully.",
-            "timestamp": log.time_in,
-        }, status=200)
+        return Response(
+            {
+                "type": person_type,
+                "person": person_info,
+                "status": action,
+                "device": device.get_full_info() if device else None,
+                "log": "Attendance logged successfully.",
+                "timestamp": log.time_in,
+            },
+            status=200,
+        )

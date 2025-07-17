@@ -9,7 +9,7 @@ from .views import (
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
 from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet, SecurityDashboardAPIView, SecurityEmployeesAPIView, SecurityGuestsAPIView, SecurityScanAPIView
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView # type: ignore
+
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -67,10 +67,6 @@ urlpatterns = [
 #   /devices/scan-qr/
 #   /guests/scan-qr/
 
-urlpatterns += [
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-]
+
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
