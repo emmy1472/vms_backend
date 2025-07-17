@@ -908,7 +908,7 @@ def user_me(request):
 
 
 class SecurityDeviceViewSet(viewsets.ModelViewSet):
-    serializer_class = DeviceSerializer
+    
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get_queryset(self):
