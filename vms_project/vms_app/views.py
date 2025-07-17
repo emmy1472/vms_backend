@@ -788,7 +788,7 @@ class AdminDevicesAPIView(APIView):
                 }
             )
         return Response(data)
-    
+
     def perform_create(self, serializer):
         # Admin can register devices for employees or guests
         serial = serializer.validated_data["serial_number"]
@@ -908,7 +908,7 @@ def user_me(request):
 
 
 class SecurityDeviceViewSet(viewsets.ModelViewSet):
-    
+
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get_queryset(self):
@@ -1046,6 +1046,7 @@ class SecurityAccessLogViewSet(viewsets.ModelViewSet):
             )
 
         return Response(data)
+
 
 class SecurityDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
