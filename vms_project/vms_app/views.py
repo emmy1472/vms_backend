@@ -13,9 +13,7 @@ from django.core.exceptions import ValidationError  # To raise validation errors
 from django.core.mail import BadHeaderError, EmailMessage  # Email utilities
 from django.conf import settings  # Django settings access
 from django.template.loader import render_to_string  # For rendering HTML email templates
-from django.utils.html import strip_tags  # To strip HTML for plain messages
-from django.contrib.contenttypes.models import ContentType  # Generic relations
-from django.utils.timezone import now # for active time
+from django.utils.html import strip_tags  # To strip HTML for plain message
 
 # Import serializers
 from .serializers import CustomTokenObtainPairSerializer
@@ -139,68 +137,4 @@ class SecurityDashboardAPIView(APIView):
             "access_logs_today": access_logs_today,
         })
 
-# QR/Token scan logic for Security (ID/Device/Token scanning)
-class SecurityScanAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsSecurity]
 
-    def post(self, request):
-        qr_value = request.data.get("qr_value")
-        device_serial = request.data.get("device_serial")
-        action = request.data.get("action", "in")
-
-        if not qr_value:
-            return Response({"detail": "qr_value is required."}, status=400)
-
-        person_type = None
-        person_obj = None
-        person_info = {}
-        device = None
-
-        # Check if it's an employee QR
-        try:
-            person_obj = EmployeeProfile.objects.get(staff_id=qr_value)
-            person_type = "employee"
-            person_info = person_obj.get_full_info()
-        except EmployeeProfile.DoesNotExist:
-            try:
-                # Check if it's a guest token
-                guest = Guest.objects.get(token=qr_value)
-                if guest.token_expiry and guest.token_expiry < now():
-                    return Response({"detail": "Token has expired."}, status=403)
-                person_obj = guest
-                person_type = "guest"
-                person_info = person_obj.get_full_info()
-            except Guest.DoesNotExist:
-                try:
-                    # Check if it's a device serial
-                    device = Device.objects.get(serial_number=qr_value)
-                    return Response({"type": "device", "device": device.get_full_info()}, status=200)
-                except Device.DoesNotExist:
-                    return Response({"detail": "QR or token not found."}, status=404)
-
-        # Match the device if given
-        if device_serial:
-            try:
-                device = Device.objects.get(serial_number=device_serial)
-            except Device.DoesNotExist:
-                return Response({"detail": "Device not found."}, status=404)
-
-        # Log the attendance/access
-        content_type = ContentType.objects.get_for_model(person_obj)
-        log = AccessLog.objects.create(
-            person_type=person_type,
-            person_id=person_obj.id,
-            content_type=content_type,
-            device=device.serial_number if device else None,
-            scanned_by=request.user,
-            status=action,
-        )
-
-        return Response({
-            "type": person_type,
-            "person": person_info,
-            "status": action,
-            "device": device.get_full_info() if device else None,
-            "log": "Attendance logged successfully.",
-            "timestamp": log.time_in,
-        }, status=200)

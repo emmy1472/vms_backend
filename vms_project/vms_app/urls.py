@@ -6,7 +6,7 @@ from .views import (
     user_me,
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
-from .views import  SecurityDashboardAPIView,  SecurityScanAPIView
+from .views import  SecurityDashboardAPIView
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -30,8 +30,7 @@ urlpatterns = [
     path('users/me/', user_me, name='user-me'),
     # Security dashboard endpoint
     path('security/dashboard/', SecurityDashboardAPIView.as_view(), name='security-dashboard'),
-    # Security scan endpoint
-    path('security/scan/', SecurityScanAPIView.as_view(), name='security-scan'),
+    
 ]
 
 
