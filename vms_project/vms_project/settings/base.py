@@ -70,7 +70,8 @@ INSTALLED_APPS = [
     'employee',
     'guest',
     'device',
-    'access_log'
+    'access_log',
+    'message'
     
 ]
 

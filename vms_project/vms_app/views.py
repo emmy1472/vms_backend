@@ -18,12 +18,12 @@ from django.contrib.contenttypes.models import ContentType  # Generic relations
 from django.utils.timezone import now # for active time
 
 # Import serializers
-from .serializers import MessageSerializer, CustomTokenObtainPairSerializer
+from .serializers import CustomTokenObtainPairSerializer
 from employee.serializers import RegisterEmployeeSerializer
 
 # Import models
-from .models import Message
-from .permissions import IsAdmin, IsSecurity, IsAdminOrReadOnly
+from message.models import Message
+from .permissions import IsAdmin, IsSecurity
 from guest.models import Guest
 from employee.models import EmployeeProfile
 from device.models import Device
@@ -78,17 +78,7 @@ class CreateEmployeeUserView(generics.CreateAPIView):
     def get_queryset(self):
         return User.objects.filter(role="employee")
 
-# Message board for employees and admins
-class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all().order_by("-created_at")
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
 
-    def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
-
-    def get_queryset(self):
-        return Message.objects.all().order_by("-created_at")
 
 # Admin dashboard overview metrics
 class AdminOverviewAPIView(APIView):
@@ -112,21 +102,7 @@ class AdminUsersAPIView(APIView):
         users = User.objects.all().values("id", "username", "email", "role", "is_active")
         return Response(list(users))
 
-# Admin table for messages
-class AdminMessagesAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
 
-    def get(self, request):
-        messages = Message.objects.all().order_by("-created_at")
-        data = [
-            {
-                "id": m.id,
-                "sender_username": getattr(m.sender, "username", None),
-                "content": m.content,
-                "created_at": m.created_at,
-            } for m in messages
-        ]
-        return Response(data)
 
 # Returns currently authenticated user info
 @api_view(["GET"])

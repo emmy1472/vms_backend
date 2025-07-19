@@ -3,7 +3,7 @@ from django.contrib import admin
 # Register your models here.
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Message
+from .models import User
 from .forms import CustomUserCreationForm
 
 
@@ -36,9 +36,4 @@ admin.site.register(User, UserAdmin)
 
 
 
-@admin.register(Message)
-class MessageAdmin(admin.ModelAdmin):
-    list_display = ['id', 'sender', 'content', 'created_at']
-    search_fields = ['content', 'sender__username']
-    list_filter = ['created_at']
 
