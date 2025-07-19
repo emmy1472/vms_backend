@@ -67,6 +67,10 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'employee',
+    'guest',
+    'device',
+    'access_log'
     
 ]
 

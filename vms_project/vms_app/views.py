@@ -1,711 +1,84 @@
 from asyncio.log import logger
 from datetime import datetime
 import logging
-import profile
 from smtplib import SMTPException
-from rest_framework import viewsets, status, generics  # type: ignore
-from rest_framework.response import Response  # type: ignore
-from rest_framework.decorators import api_view, permission_classes, action  # type: ignore
-from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission  # type: ignore
-from rest_framework.views import APIView  # type: ignore
-from rest_framework.exceptions import PermissionDenied  # type: ignore
-from rest_framework_simplejwt.views import TokenObtainPairView  # type: ignore
-from django.core.files.base import ContentFile
+from rest_framework import viewsets, generics # type: ignore  # View classes for API endpoints
+from rest_framework.response import Response # type: ignore # Used to return API responses
+from rest_framework.decorators import api_view, permission_classes # type: ignore  # Function-based view tools
+from rest_framework.permissions import IsAuthenticated # type: ignore # Permission to require login
+from rest_framework.views import APIView # type: ignore # Base class for API Views
+from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore # JWT Token View
+from django.contrib.auth import get_user_model  # To get the custom user model
+from django.core.exceptions import ValidationError  # To raise validation errors
+from django.core.mail import BadHeaderError, EmailMessage  # Email utilities
+from django.conf import settings  # Django settings access
+from django.template.loader import render_to_string  # For rendering HTML email templates
+from django.utils.html import strip_tags  # To strip HTML for plain messages
+from django.contrib.contenttypes.models import ContentType  # Generic relations
+from django.utils.timezone import now # for active time
 
-from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
-from django.core.mail import send_mail, BadHeaderError, EmailMessage
-from django.http import Http404, FileResponse
-from django.conf import settings
-from django.utils.crypto import get_random_string
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-from django.db import transaction
-from django.contrib.contenttypes.models import ContentType
+# Import serializers
+from .serializers import MessageSerializer, CustomTokenObtainPairSerializer
+from employee.serializers import RegisterEmployeeSerializer
 
-from .serializers import (
-    RegisterEmployeeSerializer,
-    EmployeeProfileSerializer,
-    DeviceSerializer,
-    GuestSerializer,
-    AccessLogSerializer,
-    MessageSerializer,
-    CustomTokenObtainPairSerializer,
-)
-from .models import EmployeeProfile, Device, Guest, AccessLog, Message
-from .permissions import (
-    IsAdmin,
-    IsEmployee,
-    IsSecurity,
-    IsEmployeeOrSecurityOrAdmin,
-    IsAdminOrReadOnly,
-    IsAdminOrEmployee,
-)
-from utils.sms import send_sms
-import qrcode
-from io import BytesIO
-import cloudinary.uploader  # type: ignore
-from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.utils.timezone import now
+# Import models
+from .models import Message
+from .permissions import IsAdmin, IsSecurity, IsAdminOrReadOnly
+from guest.models import Guest
+from employee.models import EmployeeProfile
+from device.models import Device
+from access_log.models import AccessLog
 
-
+# Initialize logger
 logger = logging.getLogger(__name__)
 
-
+# Custom JWT token view to include role in response
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-
+# Set user model
 User = get_user_model()
 
-
+# API for admin to create employee user accounts
 class CreateEmployeeUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterEmployeeSerializer
-    permission_classes = [
-        IsAuthenticated
-    ]  # You can add IsAdmin if only admins can create
+    permission_classes = [IsAuthenticated]  # Add IsAdmin if needed
 
     def perform_create(self, serializer):
-        # Set default password "Welcome$" for new users
+        # Save the new user with default password
         user = serializer.save(password="Welcome$")
 
         try:
-
             logo_url = settings.APP_LOGO_URL
-
-            # Use your HTML template for the welcome email
-            html_message = render_to_string(
-                "welcome_email.html",
-                {
-                    "username": user.username,
-                    "app_name": "NETCO Visitor Management System",
-                    "logo_url": logo_url,  # <-- Set to your public/static logo URL
-                    "default_password": "Welcome$",
-                },
-            )
+            html_message = render_to_string("welcome_email.html", {
+                "username": user.username,
+                "app_name": "NETCO Visitor Management System",
+                "logo_url": logo_url,
+                "default_password": "Welcome$",
+            })
             plain_message = strip_tags(html_message)
 
             email = EmailMessage(
                 subject="Welcome to NETCO Visitor Management System",
                 body=html_message,
-                from_email='"NETCO Visitor Management System" <{}>'.format(
-                    settings.DEFAULT_FROM_EMAIL
-                ),
+                from_email=f'"NETCO Visitor Management System" <{settings.DEFAULT_FROM_EMAIL}>',
                 to=[user.email],
             )
-            email.content_subtype = "html"  # Send as HTML
-
+            email.content_subtype = "html"
             sent_count = email.send(fail_silently=False)
-            print(f"send_mail returned: {sent_count}")
-            if sent_count == 1:
-                print("Email sent successfully!")
-            else:
-                print("Email was not sent.")
+
         except BadHeaderError:
-            print("Invalid header found while sending email.")
-            raise ValidationError(
-                {"detail": "Invalid header found while sending email."}
-            )
+            raise ValidationError({"detail": "Invalid header found while sending email."})
         except SMTPException as e:
-            print(f"SMTP error occurred: {str(e)}")
             raise ValidationError({"detail": f"SMTP error occurred: {str(e)}"})
         except Exception as e:
-            print(f"An error occurred while sending email: {str(e)}")
-            raise ValidationError(
-                {"detail": f"An error occurred while sending email: {str(e)}"}
-            )
+            raise ValidationError({"detail": f"Unexpected error sending email: {str(e)}"})
 
     def get_queryset(self):
         return User.objects.filter(role="employee")
 
-
-class EmployeeViewSet(viewsets.ModelViewSet):
-    """
-    Admin manages Employees: create/list/update/delete
-    """
-
-    queryset = User.objects.filter(role="employee")
-    serializer_class = RegisterEmployeeSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-
-class EmployeeProfileViewSet(viewsets.ModelViewSet):
-    serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrEmployee]
-
-    def get_queryset(self):
-        user = self.request.user
-        # Only return a profile for employees, not for admins
-        if hasattr(user, "role") and user.role == "employee":
-            return EmployeeProfile.objects.filter(user=user)
-        return EmployeeProfile.objects.none()
-
-    @action(detail=False, methods=["get", "post"], url_path="me")
-    def me(self, request):
-        """
-        GET: Returns the employee profile id, username, and role of the currently authenticated user.
-        POST: Allows the user to upload/update their profile picture.
-        """
-        user = request.user
-        if not user or not user.is_authenticated:
-            return Response(
-                {"detail": "Authentication credentials were not provided."},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        # Only allow employees to use this endpoint
-        if not hasattr(user, "role") or user.role != "employee":
-            # For admin, return basic user info (no profile)
-            return Response(
-                {
-                    "id": None,
-                    "username": user.username,
-                    "role": getattr(user, "role", None),
-                    "user": {
-                        "id": user.id,
-                        "username": user.username,
-                        "email": user.email,
-                    },
-                    "profile_picture_url": None,
-                    "id_qr_code_url": None,
-                }
-            )
-        try:
-            profile = EmployeeProfile.objects.get(user=user)
-            if request.method == "POST":
-                # Handle profile picture upload
-                profile_picture = request.FILES.get("profile_picture")
-                if not profile_picture:
-                    return Response(
-                        {"detail": "No profile_picture file provided."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                result = cloudinary.uploader.upload(
-                    profile_picture,
-                    folder="vms_app/profile_pictures",
-                    public_id=f"{user.id}_profile",
-                    overwrite=True,
-                    resource_type="image",
-                )
-
-                profile.profile_picture = result["secure_url"]
-                profile.save()
-
-                return Response(
-                    {
-                        "detail": "Profile picture updated successfully.",
-                        "profile_picture_url": result["secure_url"],
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
-            if not profile.id_qr_code and profile.staff_id:
-                qr = qrcode.make(profile.staff_id)
-                buffer = BytesIO()
-                qr.save(buffer, format="PNG")
-                buffer.seek(0)
-                qr_upload = cloudinary.uploader.upload(
-                    buffer,
-                    folder="vms_app/qr_codes",
-                    public_id=f"qr_codes/{profile.staff_id}_qr",
-                    overwrite=True,
-                    resource_type="image",
-                )
-                profile.id_qr_code = qr_upload["secure_url"]
-                profile.save()
-
-            # GET: Return profile info
-            return Response(
-                {
-                    "id": profile.id,
-                    "username": user.username,
-                    "role": getattr(user, "role", None),
-                    "user": {
-                        "id": user.id,
-                        "username": user.username,
-                        "email": user.email,
-                    },
-                    "profile_picture_url": (
-                        profile.profile_picture if profile.profile_picture else None
-                    ),
-                    "id_qr_code_url": (
-                        profile.id_qr_code if profile.id_qr_code else None
-                    ),
-                }
-            )
-        except EmployeeProfile.DoesNotExist:
-            return Response(
-                {"detail": "Employee profile not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    @action(detail=False, methods=["get"], url_path="prompt_change")
-    def get_must_change_password(self, request):
-        """
-        Returns must_change_password status for the current user.
-        """
-        user = request.user
-        # Allow for both employee and admin
-        must_change = False
-        if hasattr(user, "must_change_password"):
-            must_change = bool(getattr(user, "must_change_password"))
-        return Response({"must_change_password": must_change})
-
-    @action(detail=False, methods=["post"], url_path="change_password")
-    def change_password(self, request):
-        # Allow both employee and admin to change password
-        self.check_permissions(request)
-        user = request.user
-        new_password = request.data.get("new_password")
-        confirm_password = request.data.get("confirm_password")
-
-        if not new_password or not confirm_password:
-            return Response(
-                {"detail": "Both password fields are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if new_password != confirm_password:
-            return Response(
-                {"detail": "Passwords do not match."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            validate_password(new_password, user=user)
-        except ValidationError as e:
-            return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
-
-        user.set_password(new_password)
-        if hasattr(user, "must_change_password"):
-            user.must_change_password = False
-        user.save()
-
-        return Response(
-            {"detail": "Password changed successfully.", "must_change_password": False},
-            status=status.HTTP_200_OK,
-        )
-
-    @action(detail=False, methods=["post"], url_path="scan-qr")
-    def scan_qr(self, request):
-        staff_id = request.data.get("staff_id")
-        if not staff_id:
-            return Response(
-                {"detail": "staff_id is required."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            profile = EmployeeProfile.objects.get(staff_id=staff_id)
-            return Response(
-                profile.get_full_info()
-            )  # <-- Ensure this line returns get_full_info()
-        except EmployeeProfile.DoesNotExist:
-            return Response(
-                {"detail": "EmployeeProfile not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    @action(detail=False, methods=["get"], url_path="dashboard")
-    def dashboard(self, request):
-        """
-        Returns detailed info for the logged-in employee, including device count,
-        guest count, and attendance (in/out) count.
-        """
-        try:
-            profile = EmployeeProfile.objects.get(user=request.user)
-        except EmployeeProfile.DoesNotExist:
-            return Response(
-                {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Devices
-        devices = Device.objects.filter(owner_employee=profile)
-        device_count = devices.count()
-
-        # Guests invited
-        guest_count = Guest.objects.filter(invited_by=profile).count()
-
-        # Attendance logs (in/out)
-        from django.contrib.contenttypes.models import ContentType
-
-        employee_type = ContentType.objects.get_for_model(profile)
-        access_logs = AccessLog.objects.filter(
-            content_type=employee_type, person_id=profile.id
-        )
-        attendance_in = access_logs.filter(status="in").count()
-        attendance_out = access_logs.filter(status="out").count()
-
-        data = profile.get_full_info()
-        data["device_count"] = device_count
-        data["devices"] = [device.get_full_info() for device in devices]
-        data["guest_count"] = guest_count
-        data["attendance_in"] = attendance_in
-        data["attendance_out"] = attendance_out
-
-        return Response(data)
-
-    @action(detail=False, methods=["get"], url_path="attendance")
-    def attendance(self, request):
-        """
-        Returns a list of attendance logs for the logged-in employee.
-        Each log contains date, time_in, time_out, and status.
-        """
-        try:
-            profile = EmployeeProfile.objects.get(user=request.user)
-        except EmployeeProfile.DoesNotExist:
-            return Response(
-                {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        from django.contrib.contenttypes.models import ContentType
-
-        employee_type = ContentType.objects.get_for_model(profile)
-        logs = AccessLog.objects.filter(
-            content_type=employee_type, person_id=profile.id
-        ).order_by("-time_in")
-
-        data = []
-        for log in logs:
-            data.append(
-                {
-                    "date": log.time_in.date() if log.time_in else None,
-                    "time_in": (
-                        log.time_in.strftime("%H:%M:%S") if log.time_in else None
-                    ),
-                    "time_out": (
-                        log.time_out.strftime("%H:%M:%S") if log.time_out else None
-                    ),
-                    "status": log.status,
-                }
-            )
-        return Response(data)
-
-    @action(
-        detail=False,
-        methods=["post"],
-        url_path="forgot_password",
-        permission_classes=[AllowAny],
-    )
-    def forgot_password(self, request):
-        """
-        Sends a one-time password (OTP) to the user's email for password reset.
-        """
-        email = request.data.get("email")
-        if not email:
-            return Response(
-                {"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            # Case-insensitive search
-            user = get_user_model().objects.filter(email__iexact=email).first()
-            if not user:
-                return Response(
-                    {"detail": "User with this email does not exist."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            # Generate and save OTP
-            otp = get_random_string(length=6, allowed_chars="0123456789")
-            user.reset_otp = otp
-            user.save()
-
-            # Compose and send email
-            subject = "Password Reset OTP"
-            message = f"Your OTP for password reset is: {otp}"
-            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", None)
-
-            if not from_email:
-                logger.error("DEFAULT_FROM_EMAIL is not set in settings.")
-                return Response(
-                    {"detail": "Server email configuration error."}, status=500
-                )
-
-            try:
-                send_mail(subject, message, from_email, [email])
-            except (BadHeaderError, SMTPException, Exception) as email_error:
-                logger.error(
-                    f"Failed to send password reset email to {email}: {email_error}"
-                )
-                return Response(
-                    {"detail": "Failed to send email. Try again later."}, status=500
-                )
-
-            return Response({"detail": "OTP sent to your email."}, status=200)
-
-        except Exception as e:
-            logger.error(f"Unexpected forgot password error: {e}", exc_info=True)
-            return Response({"detail": "Internal server error."}, status=500)
-
-    @action(
-        detail=False,
-        methods=["post"],
-        url_path="verify_otp",
-        permission_classes=[AllowAny],
-    )
-    def verify_otp(self, request):
-        """
-        Verifies the OTP sent to the user's email.
-        """
-        email = request.data.get("email")
-        otp = request.data.get("otp")
-        if not email or not otp:
-            return Response(
-                {"detail": "Email and OTP are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        try:
-            user = get_user_model().objects.get(email=email)
-            if hasattr(user, "reset_otp") and user.reset_otp == otp:
-                return Response({"detail": "OTP verified."}, status=status.HTTP_200_OK)
-            else:
-                return Response(
-                    {"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST
-                )
-        except get_user_model().DoesNotExist:
-            return Response(
-                {"detail": "User with this email does not exist."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    @action(
-        detail=False,
-        methods=["post"],
-        url_path="reset_password",
-        permission_classes=[AllowAny],
-    )
-    def reset_password(self, request):
-        """
-        Resets the user's password after OTP verification.
-        """
-        email = request.data.get("email")
-        otp = request.data.get("otp")
-        new_password = request.data.get("new_password")
-        confirm_password = request.data.get("confirm_password")
-        if not email or not otp or not new_password or not confirm_password:
-            return Response(
-                {"detail": "All fields are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if new_password != confirm_password:
-            return Response(
-                {"detail": "Passwords do not match."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        try:
-            user = get_user_model().objects.get(email=email)
-            if hasattr(user, "reset_otp") and user.reset_otp == otp:
-                try:
-                    validate_password(new_password, user=user)
-                except ValidationError as e:
-                    return Response(
-                        {"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST
-                    )
-                user.set_password(new_password)
-                user.reset_otp = None
-                user.save()
-                return Response(
-                    {"detail": "Password reset successful."}, status=status.HTTP_200_OK
-                )
-            else:
-                return Response(
-                    {"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST
-                )
-        except get_user_model().DoesNotExist:
-            return Response(
-                {"detail": "User with this email does not exist."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-
-class DeviceViewSet(viewsets.ModelViewSet):
-    """
-    Security registers devices; Employees can view their own devices.
-    """
-
-    serializer_class = DeviceSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        # Fix: Use the correct relation for owner (owner_employee or owner_guest)
-        return Device.objects.filter(owner_employee__user=user)
-
-    def perform_create(self, serializer):
-        # Only security can register devices
-        if self.request.user.role != "security":
-            raise PermissionDenied("Only security can register devices.")
-
-        # Ensure 'owner' is present and validated by the serializer
-        if (
-            "owner" not in serializer.validated_data
-            or not serializer.validated_data["owner"]
-        ):
-            raise ValidationError("Device must be linked to an employee.")
-
-        serial = serializer.validated_data["serial_number"]
-
-        # Generate QR code image
-        img = qrcode.make(serial)
-        buffer = BytesIO()
-        img.save(buffer, format="PNG")
-        buffer.seek(0)
-
-        # Upload to Cloudinary
-        result = cloudinary.uploader.upload(
-            buffer,
-            resource_type="image",
-            public_id=f"vms_app/device_qr/{serial}_qr",
-            folder="vms_app/device_qr",
-            overwrite=True,
-        )
-
-        # Save only the URL
-        serializer.save(qr_code=result["secure_url"])
-
-    @action(detail=False, methods=["post"], url_path="scan-qr")
-    def scan_qr(self, request):
-        serial_number = request.data.get("serial_number")
-        if not serial_number:
-            return Response(
-                {"detail": "serial_number is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        try:
-            device = Device.objects.get(serial_number=serial_number)
-            return Response(
-                device.get_full_info()
-            )  # <-- Ensure this line returns get_full_info()
-        except Device.DoesNotExist:
-            return Response(
-                {"detail": "Device not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class GuestViewSet(viewsets.ModelViewSet):
-    """
-    Employees invite guests (create), Security manages guest verification.
-    """
-
-    serializer_class = GuestSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        if self.request.user.role != "employee":
-            raise PermissionDenied("Only employees can invite guests.")
-
-        with transaction.atomic():
-            invited_by = EmployeeProfile.objects.get(user=self.request.user)
-            guest = serializer.save(invited_by=invited_by)
-
-            # Generate QR code image from token
-            qr_img = qrcode.make(str(guest.token))
-            buffer = BytesIO()
-            qr_img.save(buffer)
-            buffer.seek(0)
-
-            # Upload QR code image to Cloudinary
-            result = cloudinary.uploader.upload(
-                buffer,
-                folder="vms_app/guest_qr_codes",
-                public_id=f"guest_qr_{guest.token}",
-                overwrite=True,
-                resource_type="image",
-            )
-
-            # Save the secure URL returned by Cloudinary
-            guest.token_qr_code = result["secure_url"]
-            guest.save()
-
-            # Get logo URL from settings for dynamic use
-            logo_url = settings.APP_LOGO_URL
-
-            # Send email to guest with QR code attached and inline
-            if guest.email:
-                from django.template.loader import render_to_string
-
-                html_message = render_to_string(
-                    "guest_invite_email.html",
-                    {
-                        "full_name": guest.full_name,
-                        "app_name": "NETCO Visitor Management System",
-                        "logo_url": logo_url,
-                    },
-                )
-
-                email = EmailMessage(
-                    subject="You're Invited to NETCO",
-                    body=html_message,
-                    from_email='"NETCO Visitor Management System" <{}>'.format(
-                        settings.DEFAULT_FROM_EMAIL
-                    ),
-                    to=[guest.email],
-                )
-                email.content_subtype = "html"
-
-                # Attach QR code as an attachment (most reliable for all clients)
-                email.attach(f"{guest.token}.png", buffer.getvalue(), "image/png")
-                # Inline display via Content-ID is not reliable across all clients, so attachment is preferred
-
-                email.send(fail_silently=False)
-
-                # ✅ Send SMS with token if phone number is available
-                if guest.phone:
-                    try:
-                        sms_message = f"Hello {guest.full_name}, you're invited to NETCO. Your access token is: {guest.token}"
-                        send_sms(guest.phone, sms_message)
-                    except Exception as e:
-                        print(f"Failed to send SMS: {e}")
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.role == "employee":
-            employee_profile = EmployeeProfile.objects.get(user=user)
-            return Guest.objects.filter(invited_by=employee_profile)
-        elif user.role == "security":
-            return Guest.objects.all()
-        else:
-            return Guest.objects.none()
-
-    @action(detail=False, methods=["post"], url_path="scan-qr")
-    def scan_qr(self, request):
-        token = request.data.get("token")
-        if not token:
-            return Response(
-                {"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            guest = Guest.objects.get(token=token)
-            return Response(
-                guest.get_full_info()
-            )  # <-- Ensure this line returns get_full_info()
-        except Guest.DoesNotExist:
-            return Response(
-                {"detail": "Guest not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class AccessLogViewSet(viewsets.ModelViewSet):
-
-    queryset = AccessLog.objects.all()
-    serializer_class = AccessLogSerializer
-    permission_classes = [IsAuthenticated, IsEmployeeOrSecurityOrAdmin]
-
-    def get_queryset(self):
-        user = self.request.user
-
-        if user.role == "employee":
-            # Return only this employee's logs
-            return AccessLog.objects.filter(
-                person_type="employee", person_id=user.employeeprofile.id
-            )
-        else:
-            # Admin and security can see all logs
-            return AccessLog.objects.all()
-
-
+# Message board for employees and admins
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all().order_by("-created_at")
     serializer_class = MessageSerializer
@@ -715,346 +88,63 @@ class MessageViewSet(viewsets.ModelViewSet):
         serializer.save(sender=self.request.user)
 
     def get_queryset(self):
-        # Employees and admin see all messages
         return Message.objects.all().order_by("-created_at")
 
-
+# Admin dashboard overview metrics
 class AdminOverviewAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
-        from django.contrib.auth import get_user_model
+        return Response({
+            "users": User.objects.count(),
+            "employees": EmployeeProfile.objects.count(),
+            "devices": Device.objects.count(),
+            "guests": Guest.objects.count(),
+            "messages": Message.objects.count(),
+            "access_logs": AccessLog.objects.count(),
+        })
 
-        User = get_user_model()
-        return Response(
-            {
-                "users": User.objects.count(),
-                "employees": EmployeeProfile.objects.count(),
-                "devices": Device.objects.count(),
-                "guests": Guest.objects.count(),
-                "messages": Message.objects.count(),
-                "access_logs": AccessLog.objects.count(),
-            }
-        )
-
-
-# Admin list endpoints for tables
+# Admin table for users
 class AdminUsersAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
-        from django.contrib.auth import get_user_model
-
-        User = get_user_model()
-        users = User.objects.all().values(
-            "id", "username", "email", "role", "is_active"
-        )
+        users = User.objects.all().values("id", "username", "email", "role", "is_active")
         return Response(list(users))
 
-
-class AdminEmployeesAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    def get(self, request):
-        employees = EmployeeProfile.objects.all().values(
-            "id", "full_name", "department", "position", "staff_id"
-        )
-        return Response(list(employees))
-
-
-class AdminDevicesAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    def get(self, request):
-        devices = Device.objects.all()
-        data = []
-        for d in devices:
-            data.append(
-                {
-                    "id": d.id,
-                    "device_name": d.device_name,
-                    "serial_number": d.serial_number,
-                    "owner_employee_name": (
-                        getattr(d.owner_employee, "full_name", None)
-                        if d.owner_employee
-                        else None
-                    ),
-                    "owner_guest_name": (
-                        getattr(d.owner_guest, "full_name", None)
-                        if d.owner_guest
-                        else None
-                    ),
-                    "is_verified": d.is_verified,
-                }
-            )
-        return Response(data)
-    
-    def perform_create(self, serializer):
-        # Admin can register devices for employees or guests
-        serial = serializer.validated_data["serial_number"]
-        img = qrcode.make(serial)
-        buffer = BytesIO()
-        img.save(buffer, format="PNG")
-        buffer.seek(0)
-
-        # Upload to Cloudinary
-        upload_result = cloudinary.uploader.upload(
-            buffer, public_id=serial, folder="qr_codes"
-        )
-
-        # Save the Cloudinary URL in the qr_code field (make sure it's a URLField/ImageField)
-        serializer.save(qr_code=upload_result["secure_url"])
-
-
-class AdminGuestsAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    def get(self, request):
-        guests = Guest.objects.all()
-        data = []
-        for g in guests:
-            data.append(
-                {
-                    "id": g.id,
-                    "full_name": g.full_name,
-                    "phone": g.phone,
-                    "purpose": g.purpose,
-                    "invited_by_name": (
-                        getattr(g.invited_by, "full_name", None)
-                        if g.invited_by
-                        else None
-                    ),
-                    "visit_date": g.visit_date,
-                    "is_verified": g.is_verified,
-                }
-            )
-        return Response(data)
-
-
+# Admin table for messages
 class AdminMessagesAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
         messages = Message.objects.all().order_by("-created_at")
-        data = []
-        for m in messages:
-            data.append(
-                {
-                    "id": m.id,
-                    "sender_username": getattr(m.sender, "username", None),
-                    "content": m.content,
-                    "created_at": m.created_at,
-                }
-            )
+        data = [
+            {
+                "id": m.id,
+                "sender_username": getattr(m.sender, "username", None),
+                "content": m.content,
+                "created_at": m.created_at,
+            } for m in messages
+        ]
         return Response(data)
 
-
-class AdminAccessLogsAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    def get(self, request):
-        logs = AccessLog.objects.all().order_by("-time_in")
-        data = []
-
-        for l in logs:
-            # Determine person name safely
-            # Get person name safely
-            person_name = "Unknown"
-            if l.person_type == "employee":
-                if hasattr(l.person, "full_name"):
-                    person_name = l.person.full_name
-            elif l.person_type == "guest":
-                if hasattr(l.person, "full_name"):
-                    person_name = l.person.full_name
-
-            device_serial = str(l.device) if l.device else "No Device"
-
-            data.append(
-                {
-                    "id": l.id,
-                    "person_type": l.person_type,
-                    "person_id": l.person_id,
-                    "person_name": person_name,
-                    "device": device_serial,
-                    "scanned_by": (
-                        getattr(l.scanned_by, "username", None)
-                        if l.scanned_by
-                        else None
-                    ),
-                    "time_in": l.time_in,
-                    "time_out": l.time_out,
-                    "status": l.status,
-                }
-            )
-
-        return Response(data)
-
-
+# Returns currently authenticated user info
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_me(request):
-    """
-    Returns the basic user info for the currently authenticated user (admin or employee).
-    """
     user = request.user
-    return Response(
-        {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "role": getattr(user, "role", None),
-        }
-    )
+    return Response({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": getattr(user, "role", None),
+    })
 
-
-class SecurityDeviceViewSet(viewsets.ModelViewSet):
-    serializer_class = DeviceSerializer
-    permission_classes = [IsAuthenticated, IsSecurity]
-
-    def get_queryset(self):
-        return Device.objects.all()
-
-    def get(self, request):
-        devices = Device.objects.all()
-        data = []
-        for d in devices:
-            data.append(
-                {
-                    "id": d.id,
-                    "device_name": d.device_name,
-                    "serial_number": d.serial_number,
-                    "owner_employee_name": (
-                        getattr(d.owner_employee, "full_name", None)
-                        if d.owner_employee
-                        else None
-                    ),
-                    "owner_guest_name": (
-                        getattr(d.owner_guest, "full_name", None)
-                        if d.owner_guest
-                        else None
-                    ),
-                    "is_verified": d.is_verified,
-                }
-            )
-        return Response(data)
-
-    def perform_create(self, serializer):
-        # Security can register devices for employees or guests
-        serial = serializer.validated_data["serial_number"]
-        img = qrcode.make(serial)
-        buffer = BytesIO()
-        img.save(buffer, format="PNG")
-        buffer.seek(0)
-
-        # Upload to Cloudinary
-        upload_result = cloudinary.uploader.upload(
-            buffer, public_id=serial, folder="qr_codes"
-        )
-
-        # Save the Cloudinary URL in the qr_code field (make sure it's a URLField/ImageField)
-        serializer.save(qr_code=upload_result["secure_url"])
-
-    @action(detail=False, methods=["post"], url_path="scan-qr")
-    def scan_qr(self, request):
-        serial_number = request.data.get("serial_number")
-        if not serial_number:
-            return Response(
-                {"detail": "serial_number is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        try:
-            device = Device.objects.get(serial_number=serial_number)
-            return Response(device.get_full_info())
-        except Device.DoesNotExist:
-            return Response(
-                {"detail": "Device not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class SecurityEmployeesAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsSecurity]
-
-    def get(self, request):
-        employees = EmployeeProfile.objects.all().values(
-            "id", "full_name", "department", "position", "staff_id"
-        )
-        return Response(list(employees))
-
-
-class SecurityGuestsAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsSecurity]
-
-    def get(self, request):
-        guests = Guest.objects.all()
-        data = []
-        for g in guests:
-            data.append(
-                {
-                    "id": g.id,
-                    "full_name": g.full_name,
-                    "phone": g.phone,
-                    "purpose": g.purpose,
-                    "invited_by_name": (
-                        getattr(g.invited_by, "full_name", None)
-                        if g.invited_by
-                        else None
-                    ),
-                    "visit_date": g.visit_date,
-                    "is_verified": g.is_verified,
-                }
-            )
-        return Response(data)
-
-
-class SecurityAccessLogViewSet(viewsets.ModelViewSet):
-    serializer_class = AccessLogSerializer
-    queryset = AccessLog.objects.all()  # ✅ Add this
-    permission_classes = [IsAuthenticated, IsSecurity]
-
-    def get(self, request):
-        logs = self.get_queryset().order_by("-time_in")
-        data = []
-
-        for l in logs:
-            # Determine person name safely
-            # Get person name safely
-            person_name = "Unknown"
-            if l.person_type == "employee":
-                if hasattr(l.person, "full_name"):
-                    person_name = l.person.full_name
-            elif l.person_type == "guest":
-                if hasattr(l.person, "full_name"):
-                    person_name = l.person.full_name
-
-            device_serial = str(l.device) if l.device else "No Device"
-
-            data.append(
-                {
-                    "id": l.id,
-                    "person_type": l.person_type,
-                    "person_id": l.person_id,
-                    "person_name": person_name,
-                    "device": device_serial,
-                    "scanned_by": (
-                        getattr(l.scanned_by, "username", None)
-                        if l.scanned_by
-                        else None
-                    ),
-                    "time_in": l.time_in,
-                    "time_out": l.time_out,
-                    "status": l.status,
-                }
-            )
-
-        return Response(data)
-
+# Security dashboard metrics for today
 class SecurityDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get(self, request):
-        """
-        Returns dashboard metrics for security users: device counts, guest counts, verified devices, expected guests, etc.
-        """
         device_count = Device.objects.count()
         verified_device_count = Device.objects.filter(is_verified=True).count()
         guest_count = Guest.objects.count()
@@ -1062,21 +152,18 @@ class SecurityDashboardAPIView(APIView):
         expected_guests_today = Guest.objects.filter(
             visit_date=datetime.now().date(), token_expiry__gte=datetime.now()
         ).count()
-        access_logs_today = AccessLog.objects.filter(
-            time_in__date=datetime.now().date()
-        ).count()
-        return Response(
-            {
-                "device_count": device_count,
-                "verified_device_count": verified_device_count,
-                "guest_count": guest_count,
-                "guests_today": guests_today,
-                "expected_guests_today": expected_guests_today,
-                "access_logs_today": access_logs_today,
-            }
-        )
+        access_logs_today = AccessLog.objects.filter(time_in__date=datetime.now().date()).count()
 
+        return Response({
+            "device_count": device_count,
+            "verified_device_count": verified_device_count,
+            "guest_count": guest_count,
+            "guests_today": guests_today,
+            "expected_guests_today": expected_guests_today,
+            "access_logs_today": access_logs_today,
+        })
 
+# QR/Token scan logic for Security (ID/Device/Token scanning)
 class SecurityScanAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
 
@@ -1093,38 +180,36 @@ class SecurityScanAPIView(APIView):
         person_info = {}
         device = None
 
-        # 1. Identify person: Employee or Guest
+        # Check if it's an employee QR
         try:
             person_obj = EmployeeProfile.objects.get(staff_id=qr_value)
             person_type = "employee"
             person_info = person_obj.get_full_info()
         except EmployeeProfile.DoesNotExist:
             try:
+                # Check if it's a guest token
                 guest = Guest.objects.get(token=qr_value)
                 if guest.token_expiry and guest.token_expiry < now():
                     return Response({"detail": "Token has expired."}, status=403)
-
                 person_obj = guest
                 person_type = "guest"
                 person_info = person_obj.get_full_info()
             except Guest.DoesNotExist:
-                # 2. Fallback: try if it's a device
                 try:
+                    # Check if it's a device serial
                     device = Device.objects.get(serial_number=qr_value)
-                    return Response(
-                        {"type": "device", "device": device.get_full_info()}, status=200
-                    )
+                    return Response({"type": "device", "device": device.get_full_info()}, status=200)
                 except Device.DoesNotExist:
                     return Response({"detail": "QR or token not found."}, status=404)
 
-        # 3. Optional: match device serial
+        # Match the device if given
         if device_serial:
             try:
                 device = Device.objects.get(serial_number=device_serial)
             except Device.DoesNotExist:
                 return Response({"detail": "Device not found."}, status=404)
 
-        # 4. Create access log
+        # Log the attendance/access
         content_type = ContentType.objects.get_for_model(person_obj)
         log = AccessLog.objects.create(
             person_type=person_type,
@@ -1135,14 +220,11 @@ class SecurityScanAPIView(APIView):
             status=action,
         )
 
-        return Response(
-            {
-                "type": person_type,
-                "person": person_info,
-                "status": action,
-                "device": device.get_full_info() if device else None,
-                "log": "Attendance logged successfully.",
-                "timestamp": log.time_in,
-            },
-            status=200,
-        )
+        return Response({
+            "type": person_type,
+            "person": person_info,
+            "status": action,
+            "device": device.get_full_info() if device else None,
+            "log": "Attendance logged successfully.",
+            "timestamp": log.time_in,
+        }, status=200)
