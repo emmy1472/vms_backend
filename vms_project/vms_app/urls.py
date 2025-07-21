@@ -8,7 +8,7 @@ from .views import (
     user_me,
 )
 from rest_framework_simplejwt.views import TokenRefreshView # type: ignore
-from .views import SecurityDeviceViewSet, SecurityAccessLogViewSet, SecurityDashboardAPIView, SecurityEmployeesAPIView, SecurityGuestsAPIView, SecurityScanAPIView
+from .views import SecurityDeviceViewSet, SecurityAccessLogAPIView, SecurityDashboardAPIView, SecurityEmployeesAPIView, SecurityGuestsAPIView, SecurityScanAPIView
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -26,7 +26,7 @@ router.register(r'guests', GuestViewSet, basename='guest')
 router.register(r'messages', MessageViewSet, basename='message')
 router.register(r'access-logs', AccessLogViewSet, basename='accesslog')
 router.register(r'security/devices', SecurityDeviceViewSet, basename='security-devices')
-router.register(r'security/access-logs', SecurityAccessLogViewSet, basename='security-access-logs')
+router.register(r'security/access-logs', SecurityAccessLogAPIView.as_view(), basename='security-access-logs')
 
 urlpatterns = [
     # JWT Auth
@@ -54,7 +54,7 @@ urlpatterns = [
     path('security/dashboard/', SecurityDashboardAPIView.as_view(), name='security-dashboard'),
     path('security/employees/', SecurityEmployeesAPIView.as_view(), name='security-employees'),
     path('security/guests/', SecurityGuestsAPIView.as_view(), name='security-guests'),
-    path('security/access-logs/', SecurityAccessLogViewSet.as_view({'get': 'list'}), name='security-access-logs'),
+    path('security/access-logs/', SecurityAccessLogAPIView.as_view({'get': 'list'}), name='security-access-logs'),
 
     # Security scan endpoint
     path('security/scan/', SecurityScanAPIView.as_view(), name='security-scan'),
