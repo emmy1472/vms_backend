@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter  # Handles automatic routing fo
 # Import views
 from .views import (
     AccessLogViewSet,
-    SecurityAccessLogViewSet,
+    SecurityAccessLogAPIView,
     AdminAccessLogsAPIView,
     SecurityScanAPIView
 )
@@ -21,7 +21,7 @@ urlpatterns = [
     path("", include(router.urls)),
 
     # Custom endpoint for Security personnel to fetch access logs (GET only)
-    path('security/access-logs/', SecurityAccessLogViewSet.as_view({'get': 'list'}), name='security-access-logs'),
+    path('security/access-logs/', SecurityAccessLogAPIView.as_view(), name='security-access-logs'),
 
     # Admin-only endpoint to view all access logs (GET only)
     path('admin/access-logs/', AdminAccessLogsAPIView.as_view(), name='admin-access-logs'),

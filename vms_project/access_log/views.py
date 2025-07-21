@@ -32,9 +32,8 @@ class AccessLogViewSet(viewsets.ModelViewSet):
 
 
 # Security-specific viewset to list logs (currently customized GET only)
-class SecurityAccessLogViewSet(viewsets.ModelViewSet):
-    serializer_class = AccessLogSerializer
-    queryset = AccessLog.objects.all()
+class SecurityAccessLogAPIView(APIView):
+
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get(self, request):
