@@ -54,7 +54,7 @@ urlpatterns = [
     path('security/dashboard/', SecurityDashboardAPIView.as_view(), name='security-dashboard'),
     path('security/employees/', SecurityEmployeesAPIView.as_view(), name='security-employees'),
     path('security/guests/', SecurityGuestsAPIView.as_view(), name='security-guests'),
-    path('security/access-logs/', SecurityAccessLogAPIView.as_view({'get': 'list'}), name='security-access-logs'),
+    path('security/access-logs/', SecurityAccessLogAPIView.as_view(), name='security-access-logs'),
 
     # Security scan endpoint
     path('security/scan/', SecurityScanAPIView.as_view(), name='security-scan'),
