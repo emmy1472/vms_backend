@@ -26,7 +26,6 @@ router.register(r'guests', GuestViewSet, basename='guest')
 router.register(r'messages', MessageViewSet, basename='message')
 router.register(r'access-logs', AccessLogViewSet, basename='accesslog')
 router.register(r'security/devices', SecurityDeviceViewSet, basename='security-devices')
-router.register(r'security/access-logs', SecurityAccessLogAPIView.as_view(), basename='security-access-logs')
 
 urlpatterns = [
     # JWT Auth
