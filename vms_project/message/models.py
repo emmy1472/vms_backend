@@ -1,15 +1,26 @@
 from django.db import models
 from vms_app.models import User
-# Create your models here.
 
-
+# Model for system-wide messages sent by Admins (or other users)
 class Message(models.Model):
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
+    # The user who sent the message (typically an admin)
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sent_messages"  # Allows reverse lookup: user.sent_messages.all()
+    )
+
+    # The actual message content
     content = models.TextField()
+
+    # Timestamp when the message was created
     created_at = models.DateTimeField(auto_now_add=True)
-    # Optionally, you can add a subject/title field
+
+    # Optional subject/title for message (uncomment to use)
     # subject = models.CharField(max_length=255, blank=True)
-    # For broadcast to all employees, no recipient FK needed
+
+    # Note: This model is used for broadcast messages to all users (especially employees),
+    # so no need for a specific recipient field.
 
     def __str__(self):
         return f"Message from {self.sender.username} at {self.created_at}"

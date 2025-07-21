@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import BadHeaderError, send_mail
 from django.utils.crypto import get_random_string
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 
 # SMTP error handling
 from smtplib import SMTPException
@@ -264,7 +265,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        from django.contrib.contenttypes.models import ContentType
+        
 
         logs = AccessLog.objects.filter(
             content_type=ContentType.objects.get_for_model(profile),

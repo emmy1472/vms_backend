@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission, SAFE_METHODS # type: ignore
+from rest_framework.permissions import BasePermission # type: ignore
 
 class IsAdmin(BasePermission):
     def has_permission(self, request, view):

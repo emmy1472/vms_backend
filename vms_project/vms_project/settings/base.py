@@ -48,7 +48,7 @@ else:
 # ALLOWED_HOSTS
 ALLOWED_HOSTS = BASE_HOSTS.split(',') if BASE_HOSTS else []
 
-APP_LOGO_URL = "https://vms-staging-fmha.onrender.com/staticfiles/logo.png"
+APP_LOGO_URL = "https://vms-staging-fmha.onrender.com/static/logo.png"
 
 
 AUTH_USER_MODEL = 'vms_app.User'
@@ -234,7 +234,7 @@ USE_I18N = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+
 STATIC_URL = '/static/'
 
 # Default primary key field type

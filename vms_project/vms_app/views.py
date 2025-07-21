@@ -2,49 +2,66 @@ from asyncio.log import logger
 from datetime import datetime
 import logging
 from smtplib import SMTPException
-from rest_framework import viewsets, generics # type: ignore  # View classes for API endpoints
-from rest_framework.response import Response # type: ignore # Used to return API responses
-from rest_framework.decorators import api_view, permission_classes # type: ignore  # Function-based view tools
-from rest_framework.permissions import IsAuthenticated # type: ignore # Permission to require login
-from rest_framework.views import APIView # type: ignore # Base class for API Views
-from rest_framework_simplejwt.views import TokenObtainPairView # type: ignore # JWT Token View
-from django.contrib.auth import get_user_model  # To get the custom user model
-from django.core.exceptions import ValidationError  # To raise validation errors
+
+# Django and DRF imports
+from rest_framework import viewsets, generics  # View classes for API endpoints # type: ignore
+from rest_framework.response import Response  # Used to return API responses # type: ignore
+from rest_framework.decorators import api_view, permission_classes  # For function-based views # type: ignore
+from rest_framework.permissions import IsAuthenticated  # Ensures only authenticated users can access # type: ignore
+from rest_framework.views import APIView  # Base class for API views # type: ignore
+from rest_framework_simplejwt.views import TokenObtainPairView  # For JWT auth # type: ignore
+
+from django.contrib.auth import get_user_model  # Access the custom User model
+from django.core.exceptions import ValidationError  # Raise validation errors
 from django.core.mail import BadHeaderError, EmailMessage  # Email utilities
-from django.conf import settings  # Django settings access
-from django.template.loader import render_to_string  # For rendering HTML email templates
-from django.utils.html import strip_tags  # To strip HTML for plain message
+from django.conf import settings  # Access Django settings
+from django.template.loader import render_to_string  # Render email templates
+from django.utils.html import strip_tags  # Strip HTML from email for plain-text fallback
 
 # Import serializers
 from .serializers import CustomTokenObtainPairSerializer
 from employee.serializers import RegisterEmployeeSerializer
 
-# Import models
-from message.models import Message
+# Import custom permissions and models
 from .permissions import IsAdmin, IsSecurity
+from message.models import Message
 from guest.models import Guest
 from employee.models import EmployeeProfile
 from device.models import Device
 from access_log.models import AccessLog
 
-# Initialize logger
+# Setup logger for this module
 logger = logging.getLogger(__name__)
 
-# Custom JWT token view to include role in response
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-
-# Set user model
+# Get the User model
 User = get_user_model()
 
-# API for admin to create employee user accounts
+# ================================
+# JWT AUTHENTICATION
+# ================================
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    Custom token endpoint to include additional fields like role.
+    """
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+# ================================
+# EMPLOYEE ACCOUNT CREATION (ADMIN)
+# ================================
+
 class CreateEmployeeUserView(generics.CreateAPIView):
+    """
+    API endpoint for admin to register a new employee user.
+    Sends a welcome email after creation.
+    """
     queryset = User.objects.all()
     serializer_class = RegisterEmployeeSerializer
-    permission_classes = [IsAuthenticated]  # Add IsAdmin if needed
+    permission_classes = [IsAuthenticated]  # Optionally add IsAdmin for stricter access
 
     def perform_create(self, serializer):
-        # Save the new user with default password
+        # Save new user with default password
         user = serializer.save(password="Welcome$")
 
         try:
@@ -63,8 +80,8 @@ class CreateEmployeeUserView(generics.CreateAPIView):
                 from_email=f'"NETCO Visitor Management System" <{settings.DEFAULT_FROM_EMAIL}>',
                 to=[user.email],
             )
-            email.content_subtype = "html"
-            sent_count = email.send(fail_silently=False)
+            email.content_subtype = "html"  # Send as HTML email
+            email.send(fail_silently=False)
 
         except BadHeaderError:
             raise ValidationError({"detail": "Invalid header found while sending email."})
@@ -74,12 +91,18 @@ class CreateEmployeeUserView(generics.CreateAPIView):
             raise ValidationError({"detail": f"Unexpected error sending email: {str(e)}"})
 
     def get_queryset(self):
+        # Return only employee users
         return User.objects.filter(role="employee")
 
 
+# ================================
+# ADMIN DASHBOARD OVERVIEW
+# ================================
 
-# Admin dashboard overview metrics
 class AdminOverviewAPIView(APIView):
+    """
+    Returns total counts of all major models for dashboard stats.
+    """
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
@@ -92,8 +115,15 @@ class AdminOverviewAPIView(APIView):
             "access_logs": AccessLog.objects.count(),
         })
 
-# Admin table for users
+
+# ================================
+# ADMIN: LIST USERS TABLE
+# ================================
+
 class AdminUsersAPIView(APIView):
+    """
+    Returns a list of all users (id, username, email, role, active status).
+    """
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
@@ -101,11 +131,16 @@ class AdminUsersAPIView(APIView):
         return Response(list(users))
 
 
+# ================================
+# CURRENTLY LOGGED IN USER
+# ================================
 
-# Returns currently authenticated user info
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_me(request):
+    """
+    Returns details of the currently authenticated user.
+    """
     user = request.user
     return Response({
         "id": user.id,
@@ -114,19 +149,26 @@ def user_me(request):
         "role": getattr(user, "role", None),
     })
 
-# Security dashboard metrics for today
+
+# ================================
+# SECURITY DASHBOARD OVERVIEW
+# ================================
+
 class SecurityDashboardAPIView(APIView):
+    """
+    Returns summary statistics for the security dashboard.
+    """
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get(self, request):
+        today = datetime.now().date()
+
         device_count = Device.objects.count()
         verified_device_count = Device.objects.filter(is_verified=True).count()
         guest_count = Guest.objects.count()
-        guests_today = Guest.objects.filter(visit_date=datetime.now().date()).count()
-        expected_guests_today = Guest.objects.filter(
-            visit_date=datetime.now().date(), token_expiry__gte=datetime.now()
-        ).count()
-        access_logs_today = AccessLog.objects.filter(time_in__date=datetime.now().date()).count()
+        guests_today = Guest.objects.filter(visit_date=today).count()
+        expected_guests_today = Guest.objects.filter(visit_date=today, token_expiry__gte=datetime.now()).count()
+        access_logs_today = AccessLog.objects.filter(time_in__date=today).count()
 
         return Response({
             "device_count": device_count,
@@ -136,5 +178,3 @@ class SecurityDashboardAPIView(APIView):
             "expected_guests_today": expected_guests_today,
             "access_logs_today": access_logs_today,
         })
-
-

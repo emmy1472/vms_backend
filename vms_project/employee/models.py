@@ -1,33 +1,43 @@
 from django.db import models
 from vms_app.models import User
-from django.contrib.auth.models import AbstractUser
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
-
-
-# Create your models here.
-
-
+# Model to store additional profile details for employee users
 class EmployeeProfile(models.Model):
+    # One-to-one link to the user account (must be role="employee")
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    # Full name of the employee
     full_name = models.CharField(max_length=100)
+
+    # Department the employee belongs to
     department = models.CharField(max_length=100)
+
+    # Job position or title of the employee
     position = models.CharField(max_length=100)
+
+    # Unique staff ID used to identify the employee (also used in QR codes)
     staff_id = models.CharField(max_length=50, unique=True)
+
+    # URL to the staff ID QR code image
     id_qr_code = models.URLField(blank=True)
-    profile_picture = models.URLField( blank=True, null=True)
+
+    # Optional profile picture URL
+    profile_picture = models.URLField(blank=True, null=True)
+
+    # Timestamp when the employee was registered
     date_registered = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.user.get_full_name() or self.user.username
-    
-    def __str__(self):
-        return self.full_name  
-
-    
+        """
+        String representation of the employee, falling back to username if full_name is missing.
+        """
+        return self.full_name or self.user.get_full_name() or self.user.username
 
     def get_full_info(self):
+        """
+        Returns a dictionary with complete information about the employee and their linked user account.
+        Useful for APIs or QR scanning responses.
+        """
         return {
             "id": self.id,
             "user": {
