@@ -15,7 +15,7 @@ from django.db import transaction  # Ensure atomic DB operations
 import qrcode  # Generate QR code for guest access token
 from io import BytesIO  # In-memory file object for QR image
 from employee.models import EmployeeProfile  # To link guest to inviting employee
-from vms_app.permissions import IsAdmin # to restrict access to admin users
+from vms_app.permissions import IsAdmin, IsSecurity  # to restrict access to admin and security users
 import cloudinary.uploader # type: ignore # Upload files to Cloudinary
 from django.conf import settings  # Access project settings
 from django.core.mail import EmailMessage  # Send email
@@ -190,26 +190,26 @@ class AdminGuestsAPIView(APIView):
         return Response(data)
 
 
-# class SecurityGuestsAPIView(APIView):
-#     permission_classes = [IsAuthenticated, IsSecurity]
+class SecurityGuestsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSecurity]
 
-#     def get(self, request):
-#         guests = Guest.objects.all()
-#         data = []
-#         for g in guests:
-#             data.append(
-#                 {
-#                     "id": g.id,
-#                     "full_name": g.full_name,
-#                     "phone": g.phone,
-#                     "purpose": g.purpose,
-#                     "invited_by_name": (
-#                         getattr(g.invited_by, "full_name", None)
-#                         if g.invited_by
-#                         else None
-#                     ),
-#                     "visit_date": g.visit_date,
-#                     "is_verified": g.is_verified,
-#                 }
-#             )
-#         return Response(data)
+    def get(self, request):
+        guests = Guest.objects.all()
+        data = []
+        for g in guests:
+            data.append(
+                {
+                    "id": g.id,
+                    "full_name": g.full_name,
+                    "phone": g.phone,
+                    "purpose": g.purpose,
+                    "invited_by_name": (
+                        getattr(g.invited_by, "full_name", None)
+                        if g.invited_by
+                        else None
+                    ),
+                    "visit_date": g.visit_date,
+                    "is_verified": g.is_verified,
+                }
+            )
+        return Response(data)

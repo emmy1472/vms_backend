@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter  # DRF router to auto-generate URL patterns # type: ignore
-from .views import EmployeeProfileViewSet, EmployeeViewSet, AdminEmployeesAPIView
+from .views import EmployeeProfileViewSet, EmployeeViewSet, AdminEmployeesAPIView, SecurityEmployeesAPIView
 
 # Initialize the router and register viewsets
 router = DefaultRouter()
@@ -17,4 +17,7 @@ urlpatterns = [
 
     # Custom admin-only endpoint to fetch all employees with extended data
     path('admin/employees/', AdminEmployeesAPIView.as_view(), name='admin-employees'),
+
+    # Custom security-only endpoint to fetch all employees with extended data
+    path('security/employees/', SecurityEmployeesAPIView.as_view(), name='security-employees'),
 ]

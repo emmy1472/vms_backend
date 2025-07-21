@@ -29,7 +29,7 @@ import cloudinary.uploader  # type: ignore
 from .serializers import RegisterEmployeeSerializer, EmployeeProfileSerializer
 from .models import EmployeeProfile
 from vms_app.models import User
-from vms_app.permissions import IsAdmin, IsAdminOrEmployee
+from vms_app.permissions import IsAdmin, IsAdminOrEmployee, IsSecurity
 from device.models import Device
 from guest.models import Guest
 from access_log.models import AccessLog
@@ -376,11 +376,11 @@ class AdminEmployeesAPIView(APIView):
         return Response(list(employees))
     
 
-# class SecurityEmployeesAPIView(APIView):
-#     permission_classes = [IsAuthenticated, IsSecurity]
+class SecurityEmployeesAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSecurity]
 
-#     def get(self, request):
-#         employees = EmployeeProfile.objects.all().values(
-#             "id", "full_name", "department", "position", "staff_id"
-#         )
-#         return Response(list(employees))
+    def get(self, request):
+        employees = EmployeeProfile.objects.all().values(
+            "id", "full_name", "department", "position", "staff_id"
+        )
+        return Response(list(employees))
