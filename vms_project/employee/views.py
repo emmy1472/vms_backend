@@ -1,5 +1,6 @@
 # Standard and third-party imports
 import logging
+from time import localtime
 import qrcode
 from io import BytesIO
 
@@ -272,15 +273,20 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
             person_id=profile.id
         ).order_by("-time_in")
 
-        return Response([
-            {
-                "date": log.time_in.date() if log.time_in else None,
-                "time_in": log.time_in.strftime("%H:%M:%S") if log.time_in else None,
-                "time_out": log.time_out.strftime("%H:%M:%S") if log.time_out else None,
-                "status": log.status,
-            }
-            for log in logs
-        ])
+        data = []
+        for log in logs:
+            local_time_in = localtime(log.time_in) if log.time_in else None
+            local_time_out = localtime(log.time_out) if log.time_out else None
+
+            data.append(
+                    {
+                    "date": local_time_in.date() if local_time_in else None,
+                    "time_in": local_time_in.strftime("%H:%M:%S") if local_time_in else None,
+                    "time_out": local_time_out.strftime("%H:%M:%S") if local_time_out else None,
+                    "status": log.status,
+                    }
+                )
+        return Response(data)
 
     @action(detail=False, methods=["post"], url_path="forgot_password", permission_classes=[AllowAny])
     def forgot_password(self, request):
