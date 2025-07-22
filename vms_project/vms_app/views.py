@@ -3,7 +3,7 @@ from datetime import datetime
 import logging
 import profile
 from smtplib import SMTPException
-from time import localtime
+from django.utils.timezone import localtime
 from rest_framework import viewsets, status, generics  # type: ignore
 from rest_framework.response import Response  # type: ignore
 from rest_framework.decorators import api_view, permission_classes, action  # type: ignore
