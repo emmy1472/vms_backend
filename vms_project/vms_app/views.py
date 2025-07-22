@@ -3,6 +3,7 @@ from datetime import datetime
 import logging
 import profile
 from smtplib import SMTPException
+from time import localtime
 from rest_framework import viewsets, status, generics  # type: ignore
 from rest_framework.response import Response  # type: ignore
 from rest_framework.decorators import api_view, permission_classes, action  # type: ignore
@@ -359,27 +360,27 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        from django.contrib.contenttypes.models import ContentType
+        
 
         employee_type = ContentType.objects.get_for_model(profile)
         logs = AccessLog.objects.filter(
             content_type=employee_type, person_id=profile.id
         ).order_by("-time_in")
 
+        
         data = []
         for log in logs:
+            local_time_in = localtime(log.time_in) if log.time_in else None
+            local_time_out = localtime(log.time_out) if log.time_out else None
+
             data.append(
-                {
-                    "date": log.time_in.date() if log.time_in else None,
-                    "time_in": (
-                        log.time_in.strftime("%H:%M:%S") if log.time_in else None
-                    ),
-                    "time_out": (
-                        log.time_out.strftime("%H:%M:%S") if log.time_out else None
-                    ),
+                    {
+                    "date": local_time_in.date() if local_time_in else None,
+                    "time_in": local_time_in.strftime("%H:%M:%S") if local_time_in else None,
+                    "time_out": local_time_out.strftime("%H:%M:%S") if local_time_out else None,
                     "status": log.status,
-                }
-            )
+                    }
+                )
         return Response(data)
 
     @action(
