@@ -1,6 +1,6 @@
 # Standard and third-party imports
 import logging
-from time import localtime
+from django.utils.timezone import localtime
 import qrcode
 from io import BytesIO
 
