@@ -233,7 +233,7 @@ class EmployeeProfileViewSet(viewsets.ModelViewSet):
                 {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        from django.contrib.contenttypes.models import ContentType
+        
 
         employee_type = ContentType.objects.get_for_model(profile)
         access_logs = AccessLog.objects.filter(
