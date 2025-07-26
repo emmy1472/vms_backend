@@ -93,14 +93,40 @@ class AdminAccessLogsAPIView(APIView):
         return Response(data)
 
 
-# Handles scanning logic: staff IDs, guest tokens, and device serials
+class ValidateTokenAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSecurity]
+
+    def post(self, request):
+        qr_value = request.data.get("qr_value")
+        if not qr_value:
+            return Response({"detail": "qr_value is required."}, status=400)
+
+        try:
+            employee = EmployeeProfile.objects.get(staff_id=qr_value)
+            return Response({
+                "type": "employee",
+                "person": employee.get_full_info(),
+            })
+        except EmployeeProfile.DoesNotExist:
+            try:
+                guest = Guest.objects.get(token=qr_value)
+                if guest.token_expiry and guest.token_expiry < now():
+                    return Response({"detail": "Token has expired."}, status=403)
+                return Response({
+                    "type": "guest",
+                    "person": guest.get_full_info(),
+                })
+            except Guest.DoesNotExist:
+                return Response({"detail": "QR or token not found."}, status=404)
+
+
 class SecurityScanAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def post(self, request):
         qr_value = request.data.get("qr_value")
         device_serial = request.data.get("device_serial")
-        action = request.data.get("action", "in")  # in or out
+        action = request.data.get("action", "in")
 
         if not qr_value:
             return Response({"detail": "qr_value is required."}, status=400)
@@ -110,15 +136,12 @@ class SecurityScanAPIView(APIView):
         person_info = {}
         device = None
 
-        # Try to identify the person based on QR value
         try:
-            # Try employee
             person_obj = EmployeeProfile.objects.get(staff_id=qr_value)
             person_type = "employee"
             person_info = person_obj.get_full_info()
         except EmployeeProfile.DoesNotExist:
             try:
-                # Try guest
                 guest = Guest.objects.get(token=qr_value)
                 if guest.token_expiry and guest.token_expiry < now():
                     return Response({"detail": "Token has expired."}, status=403)
@@ -126,21 +149,16 @@ class SecurityScanAPIView(APIView):
                 person_type = "guest"
                 person_info = person_obj.get_full_info()
             except Guest.DoesNotExist:
-                try:
-                    # Try device
-                    device = Device.objects.get(serial_number=qr_value)
-                    return Response({"type": "device", "device": device.get_full_info()}, status=200)
-                except Device.DoesNotExist:
-                    return Response({"detail": "QR or token not found."}, status=404)
+                return Response({"detail": "QR or token not found."}, status=404)
 
-        # Match the device if provided
+        # Match device if provided
         if device_serial:
             try:
                 device = Device.objects.get(serial_number=device_serial)
             except Device.DoesNotExist:
                 return Response({"detail": "Device not found."}, status=404)
 
-        # Log the access
+        # Log attendance
         content_type = ContentType.objects.get_for_model(person_obj)
         log = AccessLog.objects.create(
             person_type=person_type,
@@ -158,4 +176,4 @@ class SecurityScanAPIView(APIView):
             "device": device.get_full_info() if device else None,
             "log": "Attendance logged successfully.",
             "timestamp": log.time_in,
-        }, status=200)
+        })

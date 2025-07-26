@@ -6,7 +6,8 @@ from .views import (
     AccessLogViewSet,
     SecurityAccessLogAPIView,
     AdminAccessLogsAPIView,
-    SecurityScanAPIView
+    SecurityScanAPIView,
+    ValidateTokenAPIView
 )
 
 # Initialize DRF's default router
@@ -27,5 +28,6 @@ urlpatterns = [
     path('admin/access-logs/', AdminAccessLogsAPIView.as_view(), name='admin-access-logs'),
 
     # Endpoint for scanning QR/token/device during entry/exit
-    path('security/scan/', SecurityScanAPIView.as_view(), name='security-scan'),
+    path("security/validate-token/", ValidateTokenAPIView.as_view(), name="validate-token"),
+    path("security/scan/", SecurityScanAPIView.as_view(), name="security-scan"),
 ]
