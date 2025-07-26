@@ -5,6 +5,7 @@ from .views import AdminDevicesAPIView, DeviceViewSet, SecurityDeviceViewSet  # 
 # Create a router and register the general device viewset (for CRUD operations)
 router = DefaultRouter()
 router.register(r"devices", DeviceViewSet, basename="device")
+router.register(r"security/devices", SecurityDeviceViewSet, basename="security-device")
 
 # Define URL patterns for this app
 urlpatterns = [
@@ -14,6 +15,5 @@ urlpatterns = [
     # Custom endpoint for admin to view all devices
     path('admin/devices/', AdminDevicesAPIView.as_view(), name='admin-devices'),
 
-    # Custom endpoint for security to view a filtered list of devices
-    path('security/devices/', SecurityDeviceViewSet.as_view({'get': 'list'}), name='security-devices'),
+    
 ]
