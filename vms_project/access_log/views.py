@@ -37,7 +37,7 @@ class SecurityAccessLogAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSecurity]
 
     def get(self, request):
-        logs = self.get_queryset().order_by("-time_in")
+        logs = AccessLog.objects.all().order_by("-time_in")
         data = []
 
         for l in logs:
