@@ -26,19 +26,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
-
-BASE_HOSTS = os.getenv('BASE_HOST')
-
 
 DJANGO_ENV = os.getenv('DJANGO_ENV', 'dev').lower()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-if DJANGO_ENV == 'prod':
-    DEBUG = False
-else: 
-    DEBUG = True
+DEBUG = DJANGO_ENV == 'dev'
+
+# Use a safe default for dev, and force setting it in prod
+SECRET_KEY = os.getenv('SECRET_KEY')
+
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-key'  # not safe for prod
+    else:
+        raise ValueError("SECRET_KEY must be set in production environment")
+
+BASE_HOSTS = os.getenv('BASE_HOST')
+
+
+
 
 # Define your base hosts/origins in one place
 
@@ -71,7 +77,9 @@ INSTALLED_APPS = [
     'guest',
     'device',
     'access_log',
-    'message'
+    'message',
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
     
 ]
 
@@ -99,6 +107,13 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,  # Default page size for pagination    
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # Use drf-spectacular for OpenAPI schema generation
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Access Management System',
+    'DESCRIPTION': 'Full documentation for AMS API',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 

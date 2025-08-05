@@ -11,6 +11,8 @@ from rest_framework.permissions import IsAuthenticated  # Ensures only authentic
 from rest_framework.views import APIView  # Base class for API views # type: ignore
 from rest_framework_simplejwt.views import TokenObtainPairView  # For JWT auth # type: ignore
 
+from drf_spectacular.utils import extend_schema # type: ignore
+
 from django.contrib.auth import get_user_model  # Access the custom User model
 from django.core.exceptions import ValidationError  # Raise validation errors
 from django.core.mail import BadHeaderError, EmailMessage  # Email utilities
@@ -178,3 +180,17 @@ class SecurityDashboardAPIView(APIView):
             "expected_guests_today": expected_guests_today,
             "access_logs_today": access_logs_today,
         })
+
+
+
+
+
+class MyCustomView(APIView):
+    @extend_schema(
+        summary="Custom View Summary",
+        description="A detailed description of what this endpoint does.",
+        responses={200: str},
+    )
+    def get(self, request):
+        """Returns a simple greeting"""
+        return Response("Hello, world!")
