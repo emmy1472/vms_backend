@@ -21,6 +21,9 @@ from django.conf import settings  # Access project settings
 from django.core.mail import EmailMessage  # Send email
 from utils.sms import send_sms  # Custom utility to send SMS
 
+
+from utils.email_sendgrid import send_email_sendgrid
+
 # -----------------------------------------------------------------------------
 # ViewSet for managing Guest records
 # -----------------------------------------------------------------------------
@@ -44,45 +47,39 @@ class GuestViewSet(viewsets.ModelViewSet):
         - QR is uploaded to Cloudinary and email/SMS is sent to the guest.
         """
 
-        # Only users with the "employee" role can invite guests
         if self.request.user.role != "employee":
             raise PermissionDenied("Only employees can invite guests.")
 
-        # Wrap the whole logic in a DB transaction (commit/rollback safety)
         with transaction.atomic():
-            # Get the inviting employee's profile
             invited_by = EmployeeProfile.objects.get(user=self.request.user)
 
-            # Save the guest with the `invited_by` field
             guest = serializer.save(invited_by=invited_by)
 
-            # Generate a QR code from the guest's token
+                # Generate QR code
             qr_img = qrcode.make(str(guest.token))
             buffer = BytesIO()
-            qr_img.save(buffer)  # Save the image to the buffer
-            buffer.seek(0)  # Reset buffer pointer to the start
+            qr_img.save(buffer)
+            buffer.seek(0)
 
-            # Upload QR code image to Cloudinary
+            # Upload QR to Cloudinary
             result = cloudinary.uploader.upload(
                 buffer,
-                folder="vms_app/guest_qr_codes",  # Cloudinary folder path
-                public_id=f"guest_qr_{guest.token}",  # Unique file name
-                overwrite=True,  # Replace if already exists
-                resource_type="image",  # Type of media
+                folder="vms_app/guest_qr_codes",
+                public_id=f"guest_qr_{guest.token}",
+                overwrite=True,
+                resource_type="image",
             )
 
-            # Save the QR code URL to the guest object
             guest.token_qr_code = result["secure_url"]
             guest.save()
 
-            # App logo for email branding
+            # Logo for email
             logo_url = settings.APP_LOGO_URL
 
-            # If guest has an email address, send an invite email
+            # ---------- EMAIL SECTION (SendGrid) ----------
             if guest.email:
                 from django.template.loader import render_to_string
 
-                # Render the HTML email with context data
                 html_message = render_to_string(
                     "guest_invite_email.html",
                     {
@@ -92,22 +89,22 @@ class GuestViewSet(viewsets.ModelViewSet):
                     },
                 )
 
-                # Build the actual email message
-                email = EmailMessage(
+                # Prepare attachment (QR code)
+                attachment = {
+                    "content": buffer.getvalue(),
+                    "filename": f"{guest.token}.png",
+                    "type": "image/png",
+                }
+
+                status = send_email_sendgrid(
                     subject="You're Invited to NETCO",
-                    body=html_message,
-                    from_email='"NETCO Visitor Management System" <{}>'.format(
-                        settings.DEFAULT_FROM_EMAIL
-                    ),
-                    to=[guest.email],
+                    html_content=html_message,
+                    to_email=guest.email,
+                    attachments=[attachment]
                 )
-                email.content_subtype = "html"  # Set content to HTML
 
-                # Attach the QR code image as PNG
-                email.attach(f"{guest.token}.png", buffer.getvalue(), "image/png")
-
-                # Send the email (fail_silently=False to raise error on failure)
-                email.send(fail_silently=False)
+                if not status:
+                    print("Failed to send email via SendGrid")
 
                 # Optional: Send SMS if guest provided a phone number
                 if guest.phone:
