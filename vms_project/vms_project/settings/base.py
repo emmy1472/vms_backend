@@ -145,7 +145,7 @@ else:
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "emmanuelakimolayan1@gmail.com")
 
-
+EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.sendgrid.net'
