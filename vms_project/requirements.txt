@@ -19,6 +19,7 @@ djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.29.0
 drf-spectacular-sidecar==2025.10.1
 frozenlist==1.8.0
+gunicorn==23.0.0
 idna==3.11
 inflection==0.5.1
 jsonschema==4.25.1
@@ -26,6 +27,7 @@ jsonschema-specifications==2025.9.1
 MarkupSafe==3.0.3
 multidict==6.7.0
 numpy==2.3.5
+packaging==25.0
 pillow==12.0.0
 propcache==0.4.1
 psycopg2-binary==2.9.11
